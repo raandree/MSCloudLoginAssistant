@@ -39,7 +39,21 @@ function Connect-MSCloudLoginSecurityCompliance
     foreach ($loadedModule in $AlreadyLoadedSCProxyModules)
     {
         Write-Verbose -Message "Removing module {$($loadedModule.Name)} from current S+C session"
-        Remove-Module $loadedModule.Name -Force -Verbose:$false | Out-Null
+        # Use try/catch to make sure the Remove-Module doesn't throw an error if some files are still in use.
+        try
+        {
+            $currErrorActionPreference = $ErrorActionPreference
+            $ErrorActionPreference = 'Stop'
+            Remove-Module $loadedModule.Name -Force -Verbose:$false | Out-Null
+        }
+        catch
+        {
+            Write-Verbose "Issue occurred during removal of module {$($loadedModule.Name)}: {$($_.Exception.Message)}"
+        }
+        finally
+        {
+            $ErrorActionPreference = $currErrorActionPreference
+        }
     }
 
     [array]$activeSessions = Get-PSSession | Where-Object -FilterScript { $_.ComputerName -like '*ps.compliance.protection*' -and $_.State -eq 'Opened' }
