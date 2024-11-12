@@ -8,7 +8,7 @@ function Connect-MSCloudLoginTeams
     $ProgressPreference = 'SilentlyContinue'
 
     Write-Verbose -Message "Trying to get the Get-CsTeamsCallingPolicy command from within MSCloudLoginAssistant"
-    $Global:currentErrorPreference = $ErrorActionPreference
+    $currentErrorPreference = $ErrorActionPreference
     $Global:ErrorActionPreference = 'SilentlyContinue'
     try
     {
@@ -209,6 +209,7 @@ function Connect-MSCloudLoginTeams
         $Global:MSCloudLoginConnectionProfile.Teams.MultiFactorAuthentication = $false
         $Global:MSCloudLoginConnectionProfile.Teams.Connected                 = $true
     }
+
     return
 }
 
