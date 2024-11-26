@@ -415,6 +415,10 @@ function Compare-InputParametersForChange
     {
         $globalParameters.Add('Url', $workloadProfile.ConnectionUrl)
     }
+    if ($null -ne $workloadProfile.ExchangeOnlineCmdlets)
+    {
+        $globalParameters.Add('ExchangeOnlineCmdlets', $ExchangeOnlineCmdlets)
+    }
 
     # This is the global graph application id. If it is something different, it means that we should compare the parameters
     if (-not [System.String]::IsNullOrEmpty($workloadProfile.ApplicationId) `
