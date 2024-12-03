@@ -222,9 +222,17 @@ function Connect-MSCloudLoginExchangeOnline
         Write-Verbose -Message 'Attempting to connect to Exchange Online using Managed Identity'
         try
         {
-            if ($NULL -eq $Global:MSCloudLoginConnectionProfile.OrganizationName)
+            if ([string]::IsNullOrEmpty($Global:MSCloudLoginConnectionProfile.OrganizationName))
             {
-                $Global:MSCloudLoginConnectionProfile.OrganizationName = Get-MSCloudLoginOrganizationName -Identity
+                $organizationName = Get-MSCloudLoginOrganizationName -Identity
+                if ([string]::IsNullOrEmpty($organizationName))
+                {
+                    Write-Error "Could not get domain, cannot connect to Exchange Online." -ErrorAction Stop
+                }
+                else
+                {
+                    $Global:MSCloudLoginConnectionProfile.OrganizationName = $organizationName
+                }
             }
 
             Connect-ExchangeOnline -AppId $Global:MSCloudLoginConnectionProfile.ExchangeOnline.ApplicationId `

@@ -1094,7 +1094,19 @@ function Get-MSCloudLoginOrganizationName
         {
             Connect-M365Tenant -Workload MicrosoftGraph -AccessTokens $AccessTokens
         }
-        $domain = Get-MgDomain -ErrorAction Stop | Where-Object { $_.IsInitial -eq $True }
+
+        $domain = try
+        {
+            Get-MgDomain -ErrorAction Stop | Where-Object { $_.IsInitial -eq $True }
+        }
+        catch [System.Management.Automation.CommandNotFoundException]
+        {
+            Get-MgBetaDomain -ErrorAction Stop | Where-Object { $_.IsInitial -eq $True }
+        }
+        catch
+        {
+            Write-Error -ErrorRecord $_ -ErrorAction Stop
+        }
 
         if ($null -ne $domain)
         {
@@ -1103,7 +1115,7 @@ function Get-MSCloudLoginOrganizationName
     }
     catch
     {
-        Write-Verbose -Message "Couldn't get domain. Using TenantId instead"
+        Write-Verbose -Message "Couldn't get domain. Using TenantId instead. The error was $($_.Exception.Message)."
         return $TenantId
     }
 }
