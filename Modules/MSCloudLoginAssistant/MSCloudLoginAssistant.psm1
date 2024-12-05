@@ -489,7 +489,8 @@ function Compare-InputParametersForChange
     if ($null -ne $globalParameters)
     {
         $diffKeys = Compare-Object -ReferenceObject @($currentParameters.Keys) -DifferenceObject @($globalParameters.Keys) -PassThru
-        $diffValues = Compare-Object -ReferenceObject @($currentParameters.Values) -DifferenceObject @($globalParameters.Values) -PassThru
+        $compareValues = @($currentParameters.Values) | Where-Object { $_ -ne $null }
+        $diffValues = Compare-Object -ReferenceObject $compareValues -DifferenceObject @($globalParameters.Values) -PassThru
     }
 
     if ($null -eq $diffKeys -and $null -eq $diffValues)
