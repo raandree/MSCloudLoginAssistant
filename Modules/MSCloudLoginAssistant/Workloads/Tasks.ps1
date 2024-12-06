@@ -5,32 +5,32 @@ function Connect-MSCloudLoginTasks
 
     $ProgressPreference = 'SilentlyContinue'
     $WarningPreference = 'SilentlyContinue'
-    $VerbosePreference = 'SilentlyContinue'
+    $source = 'Connect-MSCloudLoginTasks'
 
-    if ($Global:MSCloudLoginConnectionProfile.Tasks.AuthenticationType -eq 'CredentialsWithApplicationId' -or
-        $Global:MSCloudLoginConnectionProfile.Tasks.AuthenticationType -eq 'Credentials' -or
-        $Global:MSCloudLoginConnectionProfile.Tasks.AuthenticationType -eq 'CredentialsWithTenantId')
+    if ($Script:MSCloudLoginConnectionProfile.Tasks.AuthenticationType -eq 'CredentialsWithApplicationId' -or
+        $Script:MSCloudLoginConnectionProfile.Tasks.AuthenticationType -eq 'Credentials' -or
+        $Script:MSCloudLoginConnectionProfile.Tasks.AuthenticationType -eq 'CredentialsWithTenantId')
     {
-        Write-Verbose -Message 'Will try connecting with user credentials'
+        Add-MSCloudLoginAssistantEvent -Message 'Will try connecting with user credentials' -Source $source
         Connect-MSCloudLoginTasksWithUser
     }
-    elseif ($Global:MSCloudLoginConnectionProfile.Tasks.AuthenticationType -eq 'ServicePrincipalWithSecret')
+    elseif ($Script:MSCloudLoginConnectionProfile.Tasks.AuthenticationType -eq 'ServicePrincipalWithSecret')
     {
-        Write-Verbose -Message 'Will try connecting with Application Secret'
+        Add-MSCloudLoginAssistantEvent -Message 'Will try connecting with Application Secret' -Source $source
         Connect-MSCloudLoginTasksWithAppSecret
     }
-    elseif ($Global:MSCloudLoginConnectionProfile.Tasks.AuthenticationType -eq 'ServicePrincipalWithThumbprint')
+    elseif ($Script:MSCloudLoginConnectionProfile.Tasks.AuthenticationType -eq 'ServicePrincipalWithThumbprint')
     {
-        Write-Verbose -Message 'Will try connecting with Application Secret'
+        Add-MSCloudLoginAssistantEvent -Message 'Will try connecting with Application Secret' -Source $source
         Connect-MSCloudLoginTasksWithCertificateThumbprint
     }
-    elseif ($Global:MSCloudLoginConnectionProfile.Tasks.AuthenticationType -eq 'AccessToken')
+    elseif ($Script:MSCloudLoginConnectionProfile.Tasks.AuthenticationType -eq 'AccessToken')
     {
-        Write-Verbose -Message 'Will try connecting with Access Token'
-        $Ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToCoTaskMemUnicode($Global:MSCloudLoginConnectionProfile.Tasks.AccessTokens[0])
+        Add-MSCloudLoginAssistantEvent -Message 'Will try connecting with Access Token' -Source $source
+        $Ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToCoTaskMemUnicode($Script:MSCloudLoginConnectionProfile.Tasks.AccessTokens[0])
         $AccessTokenValue = [System.Runtime.InteropServices.Marshal]::PtrToStringUni($Ptr)
         [System.Runtime.InteropServices.Marshal]::ZeroFreeCoTaskMemUnicode($Ptr)
-        $Global:MSCloudLoginConnectionProfile.Tasks.AccessToken = $AccessTokenValue
+        $Script:MSCloudLoginConnectionProfile.Tasks.AccessToken = $AccessTokenValue
     }
 }
 
@@ -39,20 +39,22 @@ function Connect-MSCloudLoginTasksWithUser
     [CmdletBinding()]
     param()
 
-    if ([System.String]::IsNullOrEmpty($Global:MSCloudLoginConnectionProfile.Tasks.TenantId))
+    $source = 'Connect-MSCloudLoginTasksWithUser'
+
+    if ([System.String]::IsNullOrEmpty($Script:MSCloudLoginConnectionProfile.Tasks.TenantId))
     {
-        $tenantid = $Global:MSCloudLoginConnectionProfile.Tasks.Credentials.UserName.Split('@')[1]
+        $tenantid = $Script:MSCloudLoginConnectionProfile.Tasks.Credentials.UserName.Split('@')[1]
     }
     else
     {
-        $tenantId = $Global:MSCloudLoginConnectionProfile.Tasks.TenantId
+        $tenantId = $Script:MSCloudLoginConnectionProfile.Tasks.TenantId
     }
-    $username = $Global:MSCloudLoginConnectionProfile.Tasks.Credentials.UserName
-    $password = $Global:MSCloudLoginConnectionProfile.Tasks.Credentials.GetNetworkCredential().password
+    $username = $Script:MSCloudLoginConnectionProfile.Tasks.Credentials.UserName
+    $password = $Script:MSCloudLoginConnectionProfile.Tasks.Credentials.GetNetworkCredential().password
 
     $clientId = '9ac8c0b3-2c30-497c-b4bc-cadfe9bd6eed'
-    $uri = "$($Global:MSCloudLoginConnectionProfile.Tasks.AuthorizationUrl)/{0}/oauth2/token" -f $tenantid
-    $body = "resource=$($Global:MSCloudLoginConnectionProfile.Tasks.HostUrl)/&client_id=$clientId&grant_type=password&username={1}&password={0}" -f [System.Web.HttpUtility]::UrlEncode($password), $username
+    $uri = "$($Script:MSCloudLoginConnectionProfile.Tasks.AuthorizationUrl)/{0}/oauth2/token" -f $tenantid
+    $body = "resource=$($Script:MSCloudLoginConnectionProfile.Tasks.HostUrl)/&client_id=$clientId&grant_type=password&username={1}&password={0}" -f [System.Web.HttpUtility]::UrlEncode($password), $username
 
     # Request token through ROPC
     try
@@ -63,13 +65,13 @@ function Connect-MSCloudLoginTasksWithUser
             -ContentType 'application/x-www-form-urlencoded' `
             -ErrorAction SilentlyContinue
 
-        $Global:MSCloudLoginConnectionProfile.Tasks.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
+        $Script:MSCloudLoginConnectionProfile.Tasks.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
     }
     catch
     {
         if ($_.ErrorDetails.Message -like "*AADSTS50076*")
         {
-            Write-Verbose -Message "Account used required MFA"
+            Add-MSCloudLoginAssistantEvent -Message "Account used required MFA" -Source $source
             Connect-MSCloudLoginTasksWithUserMFA
         }
     }
@@ -80,30 +82,32 @@ function Connect-MSCloudLoginTasksWithUserMFA
     [CmdletBinding()]
     param()
 
-    if ([System.String]::IsNullOrEmpty($Global:MSCloudLoginConnectionProfile.Tasks.TenantId))
+    $source = 'Connect-MSCloudLoginTasksWithUserMFA'
+
+    if ([System.String]::IsNullOrEmpty($Script:MSCloudLoginConnectionProfile.Tasks.TenantId))
     {
-        $tenantid = $Global:MSCloudLoginConnectionProfile.Tasks.Credentials.UserName.Split('@')[1]
+        $tenantid = $Script:MSCloudLoginConnectionProfile.Tasks.Credentials.UserName.Split('@')[1]
     }
     else
     {
-        $tenantId = $Global:MSCloudLoginConnectionProfile.Tasks.TenantId
+        $tenantId = $Script:MSCloudLoginConnectionProfile.Tasks.TenantId
     }
     $clientId = '9ac8c0b3-2c30-497c-b4bc-cadfe9bd6eed'
-    $deviceCodeUri = "$($Global:MSCloudLoginConnectionProfile.Tasks.AuthorizationUrl)/$tenantId/oauth2/devicecode"
+    $deviceCodeUri = "$($Script:MSCloudLoginConnectionProfile.Tasks.AuthorizationUrl)/$tenantId/oauth2/devicecode"
 
     $body = @{
         client_id = $clientId
-        resource  = $Global:MSCloudLoginConnectionProfile.Tasks.ResourceUrl
+        resource  = $Script:MSCloudLoginConnectionProfile.Tasks.ResourceUrl
     }
     $DeviceCodeRequest = Invoke-RestMethod $deviceCodeUri `
             -Method POST `
             -Body $body
 
-    Write-Host "`r`n$($DeviceCodeRequest.message)" -ForegroundColor Yellow
+    Add-MSCloudLoginAssistantEvent -Message "`r`n$($DeviceCodeRequest.message)" -Source $source
 
     $TokenRequestParams = @{
         Method = 'POST'
-        Uri    = "$($Global:MSCloudLoginConnectionProfile.Tasks.AuthorizationUrl)/$TenantId/oauth2/token"
+        Uri    = "$($Script:MSCloudLoginConnectionProfile.Tasks.AuthorizationUrl)/$TenantId/oauth2/token"
         Body   = @{
             grant_type = "urn:ietf:params:oauth:grant-type:device_code"
             code       = $DeviceCodeRequest.device_code
@@ -131,7 +135,7 @@ function Connect-MSCloudLoginTasksWithUserMFA
         }
         Start-Sleep -Seconds 1
     }
-    $Global:MSCloudLoginConnectionProfile.Tasks.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
+    $Script:MSCloudLoginConnectionProfile.Tasks.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
 }
 
 function Connect-MSCloudLoginTasksWithAppSecret
@@ -139,9 +143,8 @@ function Connect-MSCloudLoginTasksWithAppSecret
     [CmdletBinding()]
     param()
 
-
-    $uri = "$($Global:MSCloudLoginConnectionProfile.Tasks.AuthorizationUrl)/{0}/oauth2/token" -f $Global:MSCloudLoginConnectionProfile.Tasks.TenantId
-    $body = "resource=$($Global:MSCloudLoginConnectionProfile.Tasks.HostUrl)/&client_id=$($Global:MSCloudLoginConnectionProfile.Tasks.ApplicationId)&client_secret=$($Global:MSCloudLoginConnectionProfile.Tasks.ApplicationSecret)&grant_type=client_credentials"
+    $uri = "$($Script:MSCloudLoginConnectionProfile.Tasks.AuthorizationUrl)/{0}/oauth2/token" -f $Script:MSCloudLoginConnectionProfile.Tasks.TenantId
+    $body = "resource=$($Script:MSCloudLoginConnectionProfile.Tasks.HostUrl)/&client_id=$($Script:MSCloudLoginConnectionProfile.Tasks.ApplicationId)&client_secret=$($Script:MSCloudLoginConnectionProfile.Tasks.ApplicationSecret)&grant_type=client_credentials"
 
     # Request token through ROPC
     $managementToken = Invoke-RestMethod $uri `
@@ -150,7 +153,7 @@ function Connect-MSCloudLoginTasksWithAppSecret
         -ContentType 'application/x-www-form-urlencoded' `
         -ErrorAction SilentlyContinue
 
-    $Global:MSCloudLoginConnectionProfile.Tasks.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
+    $Script:MSCloudLoginConnectionProfile.Tasks.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
 }
 
 function Connect-MSCloudLoginTasksWithCertificateThumbprint
@@ -159,20 +162,20 @@ function Connect-MSCloudLoginTasksWithCertificateThumbprint
     Param()
     $WarningPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
-    $VerbosePreference = 'SilentlyContinue'
+    $source = 'Connect-MSCloudLoginTasksWithCertificateThumbprint'
 
-    Write-Verbose -Message 'Attempting to connect to Whiteboard using CertificateThumbprint'
-    $tenantId = $Global:MSCloudLoginConnectionProfile.Tasks.TenantId
+    Add-MSCloudLoginAssistantEvent -Message 'Attempting to connect to Whiteboard using CertificateThumbprint' -Source $source
+    $tenantId = $Script:MSCloudLoginConnectionProfile.Tasks.TenantId
 
     try
     {
-        $Certificate = Get-Item "Cert:\CurrentUser\My\$($Global:MSCloudLoginConnectionProfile.Tasks.CertificateThumbprint)" -ErrorAction SilentlyContinue
+        $Certificate = Get-Item "Cert:\CurrentUser\My\$($Script:MSCloudLoginConnectionProfile.Tasks.CertificateThumbprint)" -ErrorAction SilentlyContinue
 
         if ($null -eq $Certificate)
         {
-            Write-Verbose 'Certificate not found in CurrentUser\My, trying LocalMachine\My'
+            Add-MSCloudLoginAssistantEvent 'Certificate not found in CurrentUser\My, trying LocalMachine\My' -Source $source
 
-            $Certificate = Get-ChildItem "Cert:\LocalMachine\My\$($Global:MSCloudLoginConnectionProfile.Tasks.CertificateThumbprint)" -ErrorAction SilentlyContinue
+            $Certificate = Get-ChildItem "Cert:\LocalMachine\My\$($Script:MSCloudLoginConnectionProfile.Tasks.CertificateThumbprint)" -ErrorAction SilentlyContinue
 
             if ($null -eq $Certificate)
             {
@@ -202,13 +205,13 @@ function Connect-MSCloudLoginTasksWithCertificateThumbprint
         # Create JWT payload
         $JWTPayLoad = @{
             # What endpoint is allowed to use this JWT
-            aud = "$($Global:MSCloudLoginConnectionProfile.Tasks.AuthorizationUrl)/$TenantId/oauth2/token"
+            aud = "$($Script:MSCloudLoginConnectionProfile.Tasks.AuthorizationUrl)/$TenantId/oauth2/token"
 
             # Expiration timestamp
             exp = $JWTExpiration
 
             # Issuer = your application
-            iss = $Global:MSCloudLoginConnectionProfile.Tasks.ApplicationID
+            iss = $Script:MSCloudLoginConnectionProfile.Tasks.ApplicationID
 
             # JWT ID: random guid
             jti = [guid]::NewGuid()
@@ -217,7 +220,7 @@ function Connect-MSCloudLoginTasksWithCertificateThumbprint
             nbf = $NotBefore
 
             # JWT Subject
-            sub = $Global:MSCloudLoginConnectionProfile.Tasks.ApplicationID
+            sub = $Script:MSCloudLoginConnectionProfile.Tasks.ApplicationID
         }
 
         # Convert header and payload to base64
@@ -247,14 +250,14 @@ function Connect-MSCloudLoginTasksWithCertificateThumbprint
 
         # Create a hash with body parameters
         $Body = @{
-            client_id             = $Global:MSCloudLoginConnectionProfile.Tasks.ApplicationID
+            client_id             = $Script:MSCloudLoginConnectionProfile.Tasks.ApplicationID
             client_assertion      = $JWT
             client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
-            scope                 = $Global:MSCloudLoginConnectionProfile.Tasks.Scope
+            scope                 = $Script:MSCloudLoginConnectionProfile.Tasks.Scope
             grant_type            = 'client_credentials'
         }
 
-        $Url = "$($Global:MSCloudLoginConnectionProfile.Tasks.AuthorizationUrl)/$TenantId/oauth2/v2.0/token"
+        $Url = "$($Script:MSCloudLoginConnectionProfile.Tasks.AuthorizationUrl)/$TenantId/oauth2/v2.0/token"
 
         # Use the self-generated JWT as Authorization
         $Header = @{
@@ -273,8 +276,8 @@ function Connect-MSCloudLoginTasksWithCertificateThumbprint
         $Request = Invoke-RestMethod @PostSplat
 
         # View access_token
-        $Global:MSCloudLoginConnectionProfile.Tasks.AccessToken = 'Bearer ' + $Request.access_token
-        Write-Verbose -Message 'Successfully connected to the Tasks API using Certificate Thumbprint'
+        $Script:MSCloudLoginConnectionProfile.Tasks.AccessToken = 'Bearer ' + $Request.access_token
+        Add-MSCloudLoginAssistantEvent -Message 'Successfully connected to the Tasks API using Certificate Thumbprint' -Source $source
     }
     catch
     {

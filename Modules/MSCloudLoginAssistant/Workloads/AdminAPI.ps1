@@ -6,22 +6,22 @@ function Connect-MSCloudLoginAdminAPI
     $WarningPreference = 'SilentlyContinue'
     $InformationPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
-    $VerbosePreference = 'SilentlyContinue'
+    $source = 'Connect-MSCloudLoginAdminAPI'
 
-    if (-not $Global:MSCloudLoginConnectionProfile.AdminAPI.AccessToken)
+    if (-not $Script:MSCloudLoginConnectionProfile.AdminAPI.AccessToken)
     {
         try
         {
-            if ($Global:MSCloudLoginConnectionProfile.AdminAPI.AuthenticationType -eq 'CredentialsWithApplicationId' -or
-                $Global:MSCloudLoginConnectionProfile.AdminAPI.AuthenticationType -eq 'Credentials' -or
-                $Global:MSCloudLoginConnectionProfile.AdminAPI.AuthenticationType -eq 'CredentialsWithTenantId')
+            if ($Script:MSCloudLoginConnectionProfile.AdminAPI.AuthenticationType -eq 'CredentialsWithApplicationId' -or
+                $Script:MSCloudLoginConnectionProfile.AdminAPI.AuthenticationType -eq 'Credentials' -or
+                $Script:MSCloudLoginConnectionProfile.AdminAPI.AuthenticationType -eq 'CredentialsWithTenantId')
             {
-                Write-Verbose -Message 'Will try connecting with user credentials'
+                Add-MSCloudLoginAssistantEvent -Message 'Will try connecting with user credentials' -Source $source
                 Connect-MSCloudLoginAdminAPIWithUser
             }
-            elseif ($Global:MSCloudLoginConnectionProfile.AdminAPI.AuthenticationType -eq 'ServicePrincipalWithThumbprint')
+            elseif ($Script:MSCloudLoginConnectionProfile.AdminAPI.AuthenticationType -eq 'ServicePrincipalWithThumbprint')
             {
-                Write-Verbose -Message "Attempting to connect to Admin API using AAD App {$ApplicationID}"
+                Add-MSCloudLoginAssistantEvent -Message "Attempting to connect to Admin API using AAD App {$ApplicationID}" -Source $source
                 Connect-MSCloudLoginAdminAPIWithCertificateThumbprint
             }
             else
@@ -29,10 +29,10 @@ function Connect-MSCloudLoginAdminAPI
                 throw "Specified authentication method is not supported."
             }
 
-            $Global:MSCloudLoginConnectionProfile.AdminAPI.ConnectedDateTime = [System.DateTime]::Now.ToString()
-            $Global:MSCloudLoginConnectionProfile.AdminAPI.Connected = $true
-            $Global:MSCloudLoginConnectionProfile.AdminAPI.MultiFactorAuthentication = $false
-            Write-Verbose -Message "Successfully connected to Admin API using AAD App {$ApplicationID}"
+            $Script:MSCloudLoginConnectionProfile.AdminAPI.ConnectedDateTime = [System.DateTime]::Now.ToString()
+            $Script:MSCloudLoginConnectionProfile.AdminAPI.Connected = $true
+            $Script:MSCloudLoginConnectionProfile.AdminAPI.MultiFactorAuthentication = $false
+            Add-MSCloudLoginAssistantEvent -Message "Successfully connected to Admin API using AAD App {$ApplicationID}" -Source $source
         }
         catch
         {
@@ -46,19 +46,21 @@ function Connect-MSCloudLoginAdminAPIWithUser
     [CmdletBinding()]
     param()
 
-    if ([System.String]::IsNullOrEmpty($Global:MSCloudLoginConnectionProfile.AdminAPI.TenantId))
+    $source = 'Connect-MSCloudLoginAdminAPIWithUser'
+
+    if ([System.String]::IsNullOrEmpty($Script:MSCloudLoginConnectionProfile.AdminAPI.TenantId))
     {
-        $tenantid = $Global:MSCloudLoginConnectionProfile.AdminAPI.Credentials.UserName.Split('@')[1]
+        $tenantid = $Script:MSCloudLoginConnectionProfile.AdminAPI.Credentials.UserName.Split('@')[1]
     }
     else
     {
-        $tenantId = $Global:MSCloudLoginConnectionProfile.AdminAPI.TenantId
+        $tenantId = $Script:MSCloudLoginConnectionProfile.AdminAPI.TenantId
     }
-    $username = $Global:MSCloudLoginConnectionProfile.AdminAPI.Credentials.UserName
-    $password = $Global:MSCloudLoginConnectionProfile.AdminAPI.Credentials.GetNetworkCredential().password
+    $username = $Script:MSCloudLoginConnectionProfile.AdminAPI.Credentials.UserName
+    $password = $Script:MSCloudLoginConnectionProfile.AdminAPI.Credentials.GetNetworkCredential().password
 
     $clientId = '1950a258-227b-4e31-a9cf-717495945fc2'
-    $uri = "$($Global:MSCloudLoginConnectionProfile.AdminAPI.AuthorizationUrl)/{0}/oauth2/token" -f $tenantid
+    $uri = "$($Script:MSCloudLoginConnectionProfile.AdminAPI.AuthorizationUrl)/{0}/oauth2/token" -f $tenantid
     $body = "resource=6a8b4b39-c021-437c-b060-5a14a3fd65f3&client_id=$clientId&grant_type=password&username={1}&password={0}" -f [System.Web.HttpUtility]::UrlEncode($password), $username
 
     # Request token through ROPC
@@ -70,15 +72,15 @@ function Connect-MSCloudLoginAdminAPIWithUser
             -ContentType 'application/x-www-form-urlencoded' `
             -ErrorAction SilentlyContinue
 
-        $Global:MSCloudLoginConnectionProfile.AdminAPI.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
-        $Global:MSCloudLoginConnectionProfile.AdminAPI.Connected = $true
-        $Global:MSCloudLoginConnectionProfile.AdminAPI.ConnectedDateTime = [System.DateTime]::Now.ToString()
+        $Script:MSCloudLoginConnectionProfile.AdminAPI.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
+        $Script:MSCloudLoginConnectionProfile.AdminAPI.Connected = $true
+        $Script:MSCloudLoginConnectionProfile.AdminAPI.ConnectedDateTime = [System.DateTime]::Now.ToString()
     }
     catch
     {
         if ($_.ErrorDetails.Message -like "*AADSTS50076*")
         {
-            Write-Verbose -Message "Account used required MFA"
+            Add-MSCloudLoginAssistantEvent -Message "Account used required MFA" -Source $source
             Connect-MSCloudLoginAdminAPIWithUserMFA
         }
     }
@@ -88,20 +90,20 @@ function Connect-MSCloudLoginAdminAPIWithUserMFA
     [CmdletBinding()]
     param()
 
-    if ([System.String]::IsNullOrEmpty($Global:MSCloudLoginConnectionProfile.AdminAPI.TenantId))
+    if ([System.String]::IsNullOrEmpty($Script:MSCloudLoginConnectionProfile.AdminAPI.TenantId))
     {
-        $tenantid = $Global:MSCloudLoginConnectionProfile.AdminAPI.Credentials.UserName.Split('@')[1]
+        $tenantid = $Script:MSCloudLoginConnectionProfile.AdminAPI.Credentials.UserName.Split('@')[1]
     }
     else
     {
-        $tenantId = $Global:MSCloudLoginConnectionProfile.AdminAPI.TenantId
+        $tenantId = $Script:MSCloudLoginConnectionProfile.AdminAPI.TenantId
     }
     $clientId = '1950a258-227b-4e31-a9cf-717495945fc2'
-    $deviceCodeUri = "$($Global:MSCloudLoginConnectionProfile.AdminAPI.AuthorizationUrl)/$tenantId/oauth2/devicecode"
+    $deviceCodeUri = "$($Script:MSCloudLoginConnectionProfile.AdminAPI.AuthorizationUrl)/$tenantId/oauth2/devicecode"
 
     $body = @{
         client_id = $clientId
-        resource  = $Global:MSCloudLoginConnectionProfile.AdminAPI.AdminUrl
+        resource  = $Script:MSCloudLoginConnectionProfile.AdminAPI.AdminUrl
     }
     $DeviceCodeRequest = Invoke-RestMethod $deviceCodeUri `
             -Method POST `
@@ -111,7 +113,7 @@ function Connect-MSCloudLoginAdminAPIWithUserMFA
 
     $TokenRequestParams = @{
         Method = 'POST'
-        Uri    = "$($Global:MSCloudLoginConnectionProfile.AdminAPI.AuthorizationUrl)/$TenantId/oauth2/token"
+        Uri    = "$($Script:MSCloudLoginConnectionProfile.AdminAPI.AuthorizationUrl)/$TenantId/oauth2/token"
         Body   = @{
             grant_type = "urn:ietf:params:oauth:grant-type:device_code"
             code       = $DeviceCodeRequest.device_code
@@ -139,10 +141,10 @@ function Connect-MSCloudLoginAdminAPIWithUserMFA
         }
         Start-Sleep -Seconds 1
     }
-    $Global:MSCloudLoginConnectionProfile.AdminAPI.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
-    $Global:MSCloudLoginConnectionProfile.AdminAPI.Connected = $true
-    $Global:MSCloudLoginConnectionProfile.AdminAPI.MultiFactorAuthentication = $true
-    $Global:MSCloudLoginConnectionProfile.AdminAPI.ConnectedDateTime = [System.DateTime]::Now.ToString()
+    $Script:MSCloudLoginConnectionProfile.AdminAPI.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
+    $Script:MSCloudLoginConnectionProfile.AdminAPI.Connected = $true
+    $Script:MSCloudLoginConnectionProfile.AdminAPI.MultiFactorAuthentication = $true
+    $Script:MSCloudLoginConnectionProfile.AdminAPI.ConnectedDateTime = [System.DateTime]::Now.ToString()
 }
 
 function Connect-MSCloudLoginAdminAPIWithCertificateThumbprint
@@ -151,20 +153,20 @@ function Connect-MSCloudLoginAdminAPIWithCertificateThumbprint
     Param()
     $WarningPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
-    $VerbosePreference = 'SilentlyContinue'
+    $source = 'Connect-MSCloudLoginAdminAPIWithCertificateThumbprint'
 
-    Write-Verbose -Message 'Attempting to connect to AdminAPI using CertificateThumbprint'
-    $tenantId = $Global:MSCloudLoginConnectionProfile.AdminAPI.TenantId
+    Add-MSCloudLoginAssistantEvent -Message 'Attempting to connect to AdminAPI using CertificateThumbprint' -Source $source
+    $tenantId = $Script:MSCloudLoginConnectionProfile.AdminAPI.TenantId
 
     try
     {
-        $Certificate = Get-Item "Cert:\CurrentUser\My\$($Global:MSCloudLoginConnectionProfile.AdminAPI.CertificateThumbprint)" -ErrorAction SilentlyContinue
+        $Certificate = Get-Item "Cert:\CurrentUser\My\$($Script:MSCloudLoginConnectionProfile.AdminAPI.CertificateThumbprint)" -ErrorAction SilentlyContinue
 
         if ($null -eq $Certificate)
         {
-            Write-Verbose 'Certificate not found in CurrentUser\My, trying LocalMachine\My'
+            Add-MSCloudLoginAssistantEvent 'Certificate not found in CurrentUser\My, trying LocalMachine\My' -Source $source
 
-            $Certificate = Get-ChildItem "Cert:\LocalMachine\My\$($Global:MSCloudLoginConnectionProfile.AdminAPI.CertificateThumbprint)" -ErrorAction SilentlyContinue
+            $Certificate = Get-ChildItem "Cert:\LocalMachine\My\$($Script:MSCloudLoginConnectionProfile.AdminAPI.CertificateThumbprint)" -ErrorAction SilentlyContinue
 
             if ($null -eq $Certificate)
             {
@@ -194,13 +196,13 @@ function Connect-MSCloudLoginAdminAPIWithCertificateThumbprint
         # Create JWT payload
         $JWTPayLoad = @{
             # What endpoint is allowed to use this JWT
-            aud = "$($Global:MSCloudLoginConnectionProfile.AdminAPI.AuthorizationUrl)/$TenantId/oauth2/token"
+            aud = "$($Script:MSCloudLoginConnectionProfile.AdminAPI.AuthorizationUrl)/$TenantId/oauth2/token"
 
             # Expiration timestamp
             exp = $JWTExpiration
 
             # Issuer = your application
-            iss = $Global:MSCloudLoginConnectionProfile.AdminAPI.ApplicationID
+            iss = $Script:MSCloudLoginConnectionProfile.AdminAPI.ApplicationID
 
             # JWT ID: random guid
             jti = [guid]::NewGuid()
@@ -209,7 +211,7 @@ function Connect-MSCloudLoginAdminAPIWithCertificateThumbprint
             nbf = $NotBefore
 
             # JWT Subject
-            sub = $Global:MSCloudLoginConnectionProfile.AdminAPI.ApplicationID
+            sub = $Script:MSCloudLoginConnectionProfile.AdminAPI.ApplicationID
         }
 
         # Convert header and payload to base64
@@ -239,14 +241,14 @@ function Connect-MSCloudLoginAdminAPIWithCertificateThumbprint
 
         # Create a hash with body parameters
         $Body = @{
-            client_id             = $Global:MSCloudLoginConnectionProfile.AdminAPI.ApplicationID
+            client_id             = $Script:MSCloudLoginConnectionProfile.AdminAPI.ApplicationID
             client_assertion      = $JWT
             client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
-            scope                 = $Global:MSCloudLoginConnectionProfile.AdminAPI.Scope
+            scope                 = $Script:MSCloudLoginConnectionProfile.AdminAPI.Scope
             grant_type            = 'client_credentials'
         }
 
-        $Url = "$($Global:MSCloudLoginConnectionProfile.AdminAPI.AuthorizationUrl)/$TenantId/oauth2/v2.0/token"
+        $Url = "$($Script:MSCloudLoginConnectionProfile.AdminAPI.AuthorizationUrl)/$TenantId/oauth2/v2.0/token"
 
         # Use the self-generated JWT as Authorization
         $Header = @{
@@ -265,11 +267,11 @@ function Connect-MSCloudLoginAdminAPIWithCertificateThumbprint
         $Request = Invoke-RestMethod @PostSplat
 
         # View access_token
-        $Global:MSCloudLoginConnectionProfile.AdminAPI.AccessToken = 'Bearer ' + $Request.access_token
-        Write-Verbose -Message 'Successfully connected to the Admin API API using Certificate Thumbprint'
+        $Script:MSCloudLoginConnectionProfile.AdminAPI.AccessToken = 'Bearer ' + $Request.access_token
+        Add-MSCloudLoginAssistantEvent -Message 'Successfully connected to the Admin API API using Certificate Thumbprint' -Source $source
 
-        $Global:MSCloudLoginConnectionProfile.AdminAPI.Connected = $true
-        $Global:MSCloudLoginConnectionProfile.AdminAPI.ConnectedDateTime = [System.DateTime]::Now.ToString()
+        $Script:MSCloudLoginConnectionProfile.AdminAPI.Connected = $true
+        $Script:MSCloudLoginConnectionProfile.AdminAPI.ConnectedDateTime = [System.DateTime]::Now.ToString()
     }
     catch
     {

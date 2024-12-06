@@ -26,6 +26,10 @@ Describe -Name $Global:DscHelper.DescribeHeader -Fixture {
 
         }
 
+        Mock -CommandName Add-MSCloudLoginAssistantEvent -MockWith {
+
+        }
+
         # Test contexts
         Context -Name "Connecting to Azure for the first time" -Fixture {
             $CallNumber = 0

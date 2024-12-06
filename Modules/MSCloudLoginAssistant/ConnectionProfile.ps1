@@ -50,23 +50,23 @@ class MSCloudLoginConnectionProfile
         $this.CreatedTime = [System.DateTime]::Now.ToString()
 
         # Workloads Object Creation
-        $this.AdminAPI    = New-Object AdminAPI
-        $this.Azure    = New-Object Azure
-        $this.AzureDevOPS    = New-Object AzureDevOPS
-        $this.DefenderForEndpoint = New-Object DefenderForEndpoint
-        $this.ExchangeOnline = New-Object ExchangeOnline
-        $this.Fabric = New-Object Fabric
-        $this.MicrosoftGraph = New-Object MicrosoftGraph
-        $this.PnP = New-Object PnP
-        $this.PowerPlatform = New-Object PowerPlatform
+        $this.AdminAPI                 = New-Object AdminAPI
+        $this.Azure                    = New-Object Azure
+        $this.AzureDevOPS              = New-Object AzureDevOPS
+        $this.DefenderForEndpoint      = New-Object DefenderForEndpoint
+        $this.ExchangeOnline           = New-Object ExchangeOnline
+        $this.Fabric                   = New-Object Fabric
+        $this.MicrosoftGraph           = New-Object MicrosoftGraph
+        $this.PnP                      = New-Object PnP
+        $this.PowerPlatform            = New-Object PowerPlatform
         $this.SecurityComplianceCenter = New-Object SecurityComplianceCenter
-        $this.SharePointOnlineREST = New-Object SharePointOnlineREST
-        $this.Tasks = New-Object Tasks
-        $this.Teams = New-Object Teams
+        $this.SharePointOnlineREST     = New-Object SharePointOnlineREST
+        $this.Tasks                    = New-Object Tasks
+        $this.Teams                    = New-Object Teams
     }
 }
 
-class Workload
+class Workload : ICloneable
 {
     [string]
     [ValidateSet('Credentials', 'CredentialsWithApplicationId', 'CredentialsWithTenantId', 'ServicePrincipalWithSecret', 'ServicePrincipalWithThumbprint', 'ServicePrincipalWithPath', 'Interactive', 'Identity', 'AccessTokens')]
@@ -118,41 +118,46 @@ class Workload
     [System.Collections.Hashtable]
     $Endpoints
 
+    [object] Clone()
+    {
+        return $this.MemberwiseClone()
+    }
+
     Setup()
     {
-        $VerbosePreference = 'SilentlyContinue'
-        Write-Verbose -Message "Starting the Setup() logic"
-        Write-Verbose -Message "`$this.EnvironmentName = '$($this.EnvironmentName)'"
-        Write-Verbose -Message "`$Global:MSCloudLoginTriedGetEnvironment = '$($Global:MSCloudLoginTriedGetEnvironment)'"
+        $source = "Workload"
+        Add-MSCloudLoginAssistantEvent -Message "Starting the Setup() logic" -Source $source
+        Add-MSCloudLoginAssistantEvent -Message "`$this.EnvironmentName = '$($this.EnvironmentName)'" -Source $source
+        Add-MSCloudLoginAssistantEvent -Message "`$Script:MSCloudLoginTriedGetEnvironment = '$($Script:MSCloudLoginTriedGetEnvironment)'" -Source $source
         # Determine the environment name based on email
-        if ($null -eq $this.EnvironmentName -and -not $Global:MSCloudLoginTriedGetEnvironment)
+        if ($null -eq $this.EnvironmentName -and -not $Script:MSCloudLoginTriedGetEnvironment)
         {
-            $Global:MSCloudLoginTriedGetEnvironment = $true
+            $Script:MSCloudLoginTriedGetEnvironment = $true
             if ($null -ne $this.Credentials)
             {
-                $Global:CloudEnvironmentInfo = Get-CloudEnvironmentInfo -Credentials $this.Credentials
+                $Script:CloudEnvironmentInfo = Get-CloudEnvironmentInfo -Credentials $this.Credentials
             }
             elseif ($this.ApplicationID -and $this.CertificateThumbprint)
             {
-                Write-Verbose -Message "Trying to retrieve the Cloud Environment using Certificate Thumbprint."
-                $Global:CloudEnvironmentInfo = Get-CloudEnvironmentInfo -ApplicationId $this.ApplicationId -TenantId $this.TenantId -CertificateThumbprint $this.CertificateThumbprint
+                Add-MSCloudLoginAssistantEvent -Message "Trying to retrieve the Cloud Environment using Certificate Thumbprint." -Source $source
+                $Script:CloudEnvironmentInfo = Get-CloudEnvironmentInfo -ApplicationId $this.ApplicationId -TenantId $this.TenantId -CertificateThumbprint $this.CertificateThumbprint
             }
             elseif ($this.ApplicationID -and $this.ApplicationSecret)
             {
-                $Global:CloudEnvironmentInfo = Get-CloudEnvironmentInfo -ApplicationId $this.ApplicationId -TenantId $this.TenantId -ApplicationSecret $this.ApplicationSecret
+                $Script:CloudEnvironmentInfo = Get-CloudEnvironmentInfo -ApplicationId $this.ApplicationId -TenantId $this.TenantId -ApplicationSecret $this.ApplicationSecret
             }
             elseif ($this.Identity.IsPresent)
             {
-                $Global:CloudEnvironmentInfo = Get-CloudEnvironmentInfo -Identity -TenantId $this.TenantId
+                $Script:CloudEnvironmentInfo = Get-CloudEnvironmentInfo -Identity -TenantId $this.TenantId
             }
             elseif ($this.AccessTokens)
             {
-                $Global:CloudEnvironmentInfo = Get-CloudEnvironmentInfo -TenantId $this.TenantId
+                $Script:CloudEnvironmentInfo = Get-CloudEnvironmentInfo -TenantId $this.TenantId
             }
 
-            Write-Verbose "Set environment to {$($Global:CloudEnvironmentInfo.tenant_region_sub_scope)}"
+            Add-MSCloudLoginAssistantEvent "Set environment to {$($Script:CloudEnvironmentInfo.tenant_region_sub_scope)}" -Source $source
         }
-        switch ($Global:CloudEnvironmentInfo.tenant_region_sub_scope)
+        switch ($Script:CloudEnvironmentInfo.tenant_region_sub_scope)
         {
             'AzureGermanyCloud'
             {
@@ -172,13 +177,13 @@ class Workload
             }
             default
             {
-                if ($null -ne $Global:CloudEnvironmentInfo -and $Global:CloudEnvironmentInfo.token_endpoint.StartsWith('https://login.partner.microsoftonline.cn'))
+                if ($null -ne $Script:CloudEnvironmentInfo -and $Script:CloudEnvironmentInfo.token_endpoint.StartsWith('https://login.partner.microsoftonline.cn'))
                 {
                     $this.EnvironmentName = 'AzureChinaCloud'
 
                     # Converting tenant to GUID. This is a limitation of the PnP module which
                     # can't recognize the tenant when FQDN is provided.
-                    $tenantGUIDValue = $Global:CloudEnvironmentInfo.token_endpoint.Split('/')[3]
+                    $tenantGUIDValue = $Script:CloudEnvironmentInfo.token_endpoint.Split('/')[3]
                     $this.TenantGUID = $tenantGUIDValue
                 }
                 else
@@ -187,7 +192,7 @@ class Workload
                 }
             }
         }
-        Write-Verbose -Message "`$this.EnvironmentName was detected to be {$($this.EnvironmentName)}"
+        Add-MSCloudLoginAssistantEvent -Message "`$this.EnvironmentName was detected to be {$($this.EnvironmentName)}" -Source $source
         if ([System.String]::IsNullOrEmpty($this.EnvironmentName))
         {
             if ($null -ne $this.TenantId -and $this.TenantId.EndsWith('.cn'))
@@ -237,7 +242,7 @@ class Workload
         {
             $this.AuthenticationType = 'Interactive'
         }
-        Write-Verbose -Message "`$this.AuthenticationType determined to be {$($this.AuthenticationType)}"
+        Add-MSCloudLoginAssistantEvent -Message "`$this.AuthenticationType determined to be {$($this.AuthenticationType)}" -Source $source
     }
 }
 
@@ -291,7 +296,7 @@ class Azure:Workload
 
     [void] Connect()
     {
-        $Global:MSCloudLoginTriedGetEnvironment = $false
+        $Script:MSCloudLoginTriedGetEnvironment = $false
         ([Workload]$this).Setup()
 
         Connect-MSCloudLoginAzure
@@ -443,12 +448,13 @@ class ExchangeOnline:Workload
             }
         }
 
-        Connect-MSCloudLoginExchangeOnline
+        Connect-MSCloudLoginExchangeOnline -Verbose
     }
 
     [void] Disconnect()
     {
-        Write-Verbose -Message 'Disconnecting from Exchange Online Connection'
+        $source = 'ExchangeOnline-Disconnect()'
+        Add-MSCloudLoginAssistantEvent -Message 'Disconnecting from Exchange Online Connection' -Source $source
         Disconnect-ExchangeOnline -Confirm:$false
         $this.Connected = $false
         $this.LoadedAllCmdlets = $false
@@ -577,6 +583,7 @@ class MicrosoftGraph:Workload
                 }
             }
         }
+
         Connect-MSCloudLoginMicrosoftGraph
     }
 }
@@ -745,40 +752,40 @@ class SharePointOnlineREST:Workload
         ([Workload]$this).Setup()
 
         # Retrieve the SPO Admin URL
-        if ($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthenticationType -eq 'Credentials' -and `
-            -not $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl)
+        if ($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthenticationType -eq 'Credentials' -and `
+            -not $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl)
         {
-            $this.AdminUrl = Get-SPOAdminUrl -Credential $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.Credentials
+            $this.AdminUrl = Get-SPOAdminUrl -Credential $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.Credentials
             if ([String]::IsNullOrEmpty($this.AdminUrl) -eq $false)
             {
-                $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl = $this.AdminUrl
-                $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.ConnectionUrl = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl
+                $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl = $this.AdminUrl
+                $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.ConnectionUrl = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl
             }
             else
             {
                 throw 'Unable to retrieve SharePoint Admin Url. Check if the Graph can be contacted successfully.'
             }
         }
-        elseif (-not $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl -and `
-                -not [System.String]::IsNullOrEmpty($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId))
+        elseif (-not $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl -and `
+                -not [System.String]::IsNullOrEmpty($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId))
         {
-            if ($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId.Contains('onmicrosoft'))
+            if ($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId.Contains('onmicrosoft'))
             {
-                $domain = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId.Replace('.onmicrosoft.', '-admin.sharepoint.')
-                if (-not $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl)
+                $domain = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId.Replace('.onmicrosoft.', '-admin.sharepoint.')
+                if (-not $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl)
                 {
-                    $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl = "https://$domain"
+                    $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl = "https://$domain"
                 }
-                $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.ConnectionUrl = ("https://$domain").Replace('-admin', '')
+                $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.ConnectionUrl = ("https://$domain").Replace('-admin', '')
             }
-            elseif ($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId.Contains('.onmschina.'))
+            elseif ($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId.Contains('.onmschina.'))
             {
-                $domain = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId.Replace('.partner.onmschina.', '-admin.sharepoint.')
-                if (-not $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl)
+                $domain = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId.Replace('.partner.onmschina.', '-admin.sharepoint.')
+                if (-not $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl)
                 {
-                    $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl = "https://$domain"
+                    $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl = "https://$domain"
                 }
-                $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.ConnectionUrl = ("https://$domain").Replace('-admin', '')
+                $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.ConnectionUrl = ("https://$domain").Replace('-admin', '')
             }
             else
             {

@@ -6,32 +6,32 @@ function Connect-MSCloudLoginAzureDevOPS
     $WarningPreference = 'SilentlyContinue'
     $InformationPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
-    $VerbosePreference = 'SilentlyContinue'
+    $source = 'Connect-MSCloudLoginAzureDevOPS'
 
-    if ($Global:MSCloudLoginConnectionProfile.AzureDevOPS.AuthenticationType -eq 'ServicePrincipalWithThumbprint')
+    if ($Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthenticationType -eq 'ServicePrincipalWithThumbprint')
     {
-        Write-Verbose -Message "Attempting to connect to Azure DevOPS using AAD App {$ApplicationID}"
+        Add-MSCloudLoginAssistantEvent -Message "Attempting to connect to Azure DevOPS using AAD App {$ApplicationID}" -Source $source
         try
         {
             Connect-MSCloudLoginAzureDevOPSWithCertificateThumbprint
 
-            $Global:MSCloudLoginConnectionProfile.AzureDevOPS.ConnectedDateTime = [System.DateTime]::Now.ToString()
-            $Global:MSCloudLoginConnectionProfile.AzureDevOPS.Connected = $true
-            $Global:MSCloudLoginConnectionProfile.AzureDevOPS.MultiFactorAuthentication = $false
-            Write-Verbose -Message "Successfully connected to Azure DevOPS using AAD App {$ApplicationID}"
+            $Script:MSCloudLoginConnectionProfile.AzureDevOPS.ConnectedDateTime = [System.DateTime]::Now.ToString()
+            $Script:MSCloudLoginConnectionProfile.AzureDevOPS.Connected = $true
+            $Script:MSCloudLoginConnectionProfile.AzureDevOPS.MultiFactorAuthentication = $false
+            Add-MSCloudLoginAssistantEvent -Message "Successfully connected to Azure DevOPS using AAD App {$ApplicationID}" -Source $source
         }
         catch
         {
             throw $_
         }
     }
-    elseif ($Global:MSCloudLoginConnectionProfile.AzureDevOPS.AuthenticationType -eq 'CredentialsWithApplicationId' -or
-                $Global:MSCloudLoginConnectionProfile.AzureDevOPS.AuthenticationType -eq 'Credentials' -or
-                $Global:MSCloudLoginConnectionProfile.AzureDevOPS.AuthenticationType -eq 'CredentialsWithTenantId')
+    elseif ($Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthenticationType -eq 'CredentialsWithApplicationId' -or
+                $Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthenticationType -eq 'Credentials' -or
+                $Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthenticationType -eq 'CredentialsWithTenantId')
     {
-        Write-Verbose -MEssage "Attempting to connecto to Azure DevOPS using Credentials."
+        Add-MSCloudLoginAssistantEvent -Message "Attempting to connecto to Azure DevOPS using Credentials." -Source $source
         Connect-MSCloudAzureDevOPSWithUser
-        Write-Verbose -Message "Successfully connected to Azure DevOPS using Credentials"
+        Add-MSCloudLoginAssistantEvent -Message "Successfully connected to Azure DevOPS using Credentials" -Source $source
     }
     else
     {
@@ -43,19 +43,21 @@ function Connect-MSCloudAzureDevOPSWithUser
     [CmdletBinding()]
     param()
 
-    if ([System.String]::IsNullOrEmpty($Global:MSCloudLoginConnectionProfile.AzureDevOPS.TenantId))
+    $source = 'Connect-MSCloudAzureDevOPSWithUser'
+
+    if ([System.String]::IsNullOrEmpty($Script:MSCloudLoginConnectionProfile.AzureDevOPS.TenantId))
     {
-        $tenantid = $Global:MSCloudLoginConnectionProfile.AzureDevOPS.Credentials.UserName.Split('@')[1]
+        $tenantid = $Script:MSCloudLoginConnectionProfile.AzureDevOPS.Credentials.UserName.Split('@')[1]
     }
     else
     {
-        $tenantId = $Global:MSCloudLoginConnectionProfile.AzureDevOPS.TenantId
+        $tenantId = $Script:MSCloudLoginConnectionProfile.AzureDevOPS.TenantId
     }
-    $username = $Global:MSCloudLoginConnectionProfile.AzureDevOPS.Credentials.UserName
-    $password = $Global:MSCloudLoginConnectionProfile.AzureDevOPS.Credentials.GetNetworkCredential().password
+    $username = $Script:MSCloudLoginConnectionProfile.AzureDevOPS.Credentials.UserName
+    $password = $Script:MSCloudLoginConnectionProfile.AzureDevOPS.Credentials.GetNetworkCredential().password
 
     $clientId = '1950a258-227b-4e31-a9cf-717495945fc2'
-    $uri = "$($Global:MSCloudLoginConnectionProfile.AzureDevOPS.AuthorizationUrl)/organizations/oauth2/token"
+    $uri = "$($Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthorizationUrl)/organizations/oauth2/token"
     $Body = @{
         grant_type   = 'password'
         # Client id below is for Azure PowerShell
@@ -72,15 +74,15 @@ function Connect-MSCloudAzureDevOPSWithUser
             -ContentType 'application/x-www-form-urlencoded' `
             -ErrorAction SilentlyContinue
 
-        $Global:MSCloudLoginConnectionProfile.AzureDevOPS.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
-        $Global:MSCloudLoginConnectionProfile.AzureDevOPS.Connected = $true
-        $Global:MSCloudLoginConnectionProfile.AzureDevOPS.ConnectedDateTime = [System.DateTime]::Now.ToString()
+        $Script:MSCloudLoginConnectionProfile.AzureDevOPS.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
+        $Script:MSCloudLoginConnectionProfile.AzureDevOPS.Connected = $true
+        $Script:MSCloudLoginConnectionProfile.AzureDevOPS.ConnectedDateTime = [System.DateTime]::Now.ToString()
     }
     catch
     {
         if ($_.ErrorDetails.Message -like "*AADSTS50076*")
         {
-            Write-Verbose -Message "Account used required MFA"
+            Add-MSCloudLoginAssistantEvent -Message "Account used required MFA" -Source $source
             Connect-MSCloudLoginAzureDevOPSWithUserMFA
         }
     }
@@ -90,20 +92,20 @@ function Connect-MSCloudAzureDevOPSWithUserMFA
     [CmdletBinding()]
     param()
 
-    if ([System.String]::IsNullOrEmpty($Global:MSCloudLoginConnectionProfile.AzureDevOPS.TenantId))
+    if ([System.String]::IsNullOrEmpty($Script:MSCloudLoginConnectionProfile.AzureDevOPS.TenantId))
     {
-        $tenantid = $Global:MSCloudLoginConnectionProfile.AzureDevOPS.Credentials.UserName.Split('@')[1]
+        $tenantid = $Script:MSCloudLoginConnectionProfile.AzureDevOPS.Credentials.UserName.Split('@')[1]
     }
     else
     {
-        $tenantId = $Global:MSCloudLoginConnectionProfile.AzureDevOPS.TenantId
+        $tenantId = $Script:MSCloudLoginConnectionProfile.AzureDevOPS.TenantId
     }
     $clientId = '499b84ac-1321-427f-aa17-267ca6975798'
-    $deviceCodeUri = "$($Global:MSCloudLoginConnectionProfile.AzureDevOPS.AuthorizationUrl)/$tenantId/oauth2/devicecode"
+    $deviceCodeUri = "$($Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthorizationUrl)/$tenantId/oauth2/devicecode"
 
     $body = @{
         client_id = $clientId
-        resource  = $Global:MSCloudLoginConnectionProfile.AzureDevOPS.AdminUrl
+        resource  = $Script:MSCloudLoginConnectionProfile.AzureDevOPS.AdminUrl
     }
     $DeviceCodeRequest = Invoke-RestMethod $deviceCodeUri `
             -Method POST `
@@ -113,7 +115,7 @@ function Connect-MSCloudAzureDevOPSWithUserMFA
 
     $TokenRequestParams = @{
         Method = 'POST'
-        Uri    = "$($Global:MSCloudLoginConnectionProfile.AzureDevOPS.AuthorizationUrl)/$TenantId/oauth2/token"
+        Uri    = "$($Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthorizationUrl)/$TenantId/oauth2/token"
         Body   = @{
             grant_type = "urn:ietf:params:oauth:grant-type:device_code"
             code       = $DeviceCodeRequest.device_code
@@ -141,10 +143,10 @@ function Connect-MSCloudAzureDevOPSWithUserMFA
         }
         Start-Sleep -Seconds 1
     }
-    $Global:MSCloudLoginConnectionProfile.AzureDevOPS.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
-    $Global:MSCloudLoginConnectionProfile.AzureDevOPS.Connected = $true
-    $Global:MSCloudLoginConnectionProfile.AzureDevOPS.MultiFactorAuthentication = $true
-    $Global:MSCloudLoginConnectionProfile.AzureDevOPS.ConnectedDateTime = [System.DateTime]::Now.ToString()
+    $Script:MSCloudLoginConnectionProfile.AzureDevOPS.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
+    $Script:MSCloudLoginConnectionProfile.AzureDevOPS.Connected = $true
+    $Script:MSCloudLoginConnectionProfile.AzureDevOPS.MultiFactorAuthentication = $true
+    $Script:MSCloudLoginConnectionProfile.AzureDevOPS.ConnectedDateTime = [System.DateTime]::Now.ToString()
 }
 
 function Connect-MSCloudLoginAzureDevOPSWithCertificateThumbprint
@@ -153,21 +155,21 @@ function Connect-MSCloudLoginAzureDevOPSWithCertificateThumbprint
     Param()
     $WarningPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
-    $VerbosePreference = 'SilentlyContinue'
+    $source = 'Connect-MSCloudLoginAzureDevOPSWithCertificateThumbprint'
 
-    Write-Verbose -Message 'Attempting to connect to Azure DevOPS using CertificateThumbprint'
-    $tenantId = $Global:MSCloudLoginConnectionProfile.AzureDevOPS.TenantId
+    Add-MSCloudLoginAssistantEvent -Message 'Attempting to connect to Azure DevOPS using CertificateThumbprint' -Source $source
+    $tenantId = $Script:MSCloudLoginConnectionProfile.AzureDevOPS.TenantId
 
     try
     {
-        Write-Verbose -Message "Retrieving certificate in CurrentUser\My\$($Global:MSCloudLoginConnectionProfile.AzureDevOPS.CertificateThumbprint)"
-        $Certificate = Get-Item "Cert:\CurrentUser\My\$($Global:MSCloudLoginConnectionProfile.AzureDevOPS.CertificateThumbprint)" -ErrorAction SilentlyContinue
+        Add-MSCloudLoginAssistantEvent -Message "Retrieving certificate in CurrentUser\My\$($Script:MSCloudLoginConnectionProfile.AzureDevOPS.CertificateThumbprint)" -Source $source
+        $Certificate = Get-Item "Cert:\CurrentUser\My\$($Script:MSCloudLoginConnectionProfile.AzureDevOPS.CertificateThumbprint)" -ErrorAction SilentlyContinue
 
         if ($null -eq $Certificate)
         {
-            Write-Verbose 'Certificate not found in CurrentUser\My, trying LocalMachine\My'
-            Write-Verbose -Message "Retrieving certificate in LocalMachine\My\$($Global:MSCloudLoginConnectionProfile.AzureDevOPS.CertificateThumbprint)"
-            $Certificate = Get-ChildItem "Cert:\LocalMachine\My\$($Global:MSCloudLoginConnectionProfile.AzureDevOPS.CertificateThumbprint)" -ErrorAction SilentlyContinue
+            Add-MSCloudLoginAssistantEvent 'Certificate not found in CurrentUser\My, trying LocalMachine\My' -Source $source
+            Add-MSCloudLoginAssistantEvent -Message "Retrieving certificate in LocalMachine\My\$($Script:MSCloudLoginConnectionProfile.AzureDevOPS.CertificateThumbprint)" -Source $source
+            $Certificate = Get-ChildItem "Cert:\LocalMachine\My\$($Script:MSCloudLoginConnectionProfile.AzureDevOPS.CertificateThumbprint)" -ErrorAction SilentlyContinue
 
             if ($null -eq $Certificate)
             {
@@ -197,13 +199,13 @@ function Connect-MSCloudLoginAzureDevOPSWithCertificateThumbprint
         # Create JWT payload
         $JWTPayLoad = @{
             # What endpoint is allowed to use this JWT
-            aud = "$($Global:MSCloudLoginConnectionProfile.AzureDevOPS.AuthorizationUrl)/$TenantId/oauth2/token"
+            aud = "$($Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthorizationUrl)/$TenantId/oauth2/token"
 
             # Expiration timestamp
             exp = $JWTExpiration
 
             # Issuer = your application
-            iss = $Global:MSCloudLoginConnectionProfile.AzureDevOPS.ApplicationID
+            iss = $Script:MSCloudLoginConnectionProfile.AzureDevOPS.ApplicationID
 
             # JWT ID: random guid
             jti = [guid]::NewGuid()
@@ -212,7 +214,7 @@ function Connect-MSCloudLoginAzureDevOPSWithCertificateThumbprint
             nbf = $NotBefore
 
             # JWT Subject
-            sub = $Global:MSCloudLoginConnectionProfile.AzureDevOPS.ApplicationID
+            sub = $Script:MSCloudLoginConnectionProfile.AzureDevOPS.ApplicationID
         }
 
         # Convert header and payload to base64
@@ -242,14 +244,14 @@ function Connect-MSCloudLoginAzureDevOPSWithCertificateThumbprint
 
         # Create a hash with body parameters
         $Body = @{
-            client_id             = $Global:MSCloudLoginConnectionProfile.AzureDevOPS.ApplicationID
+            client_id             = $Script:MSCloudLoginConnectionProfile.AzureDevOPS.ApplicationID
             client_assertion      = $JWT
             client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
-            scope                 = $Global:MSCloudLoginConnectionProfile.AzureDevOPS.Scope
+            scope                 = $Script:MSCloudLoginConnectionProfile.AzureDevOPS.Scope
             grant_type            = 'client_credentials'
         }
 
-        $Url = "$($Global:MSCloudLoginConnectionProfile.AzureDevOPS.AuthorizationUrl)/$TenantId/oauth2/v2.0/token"
+        $Url = "$($Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthorizationUrl)/$TenantId/oauth2/v2.0/token"
 
         # Use the self-generated JWT as Authorization
         $Header = @{
@@ -268,8 +270,8 @@ function Connect-MSCloudLoginAzureDevOPSWithCertificateThumbprint
         $Request = Invoke-RestMethod @PostSplat
 
         # View access_token
-        $Global:MSCloudLoginConnectionProfile.AzureDevOPS.AccessToken = 'Bearer ' + $Request.access_token
-        Write-Verbose -Message 'Successfully connected to the Azure DevOPS API using Certificate Thumbprint'
+        $Script:MSCloudLoginConnectionProfile.AzureDevOPS.AccessToken = 'Bearer ' + $Request.access_token
+        Add-MSCloudLoginAssistantEvent -Message 'Successfully connected to the Azure DevOPS API using Certificate Thumbprint' -Source $source
     }
     catch
     {

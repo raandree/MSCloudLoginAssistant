@@ -5,32 +5,32 @@ function Connect-MSCloudLoginDefenderForEndpoint
 
     $ProgressPreference = 'SilentlyContinue'
     $WarningPreference = 'SilentlyContinue'
-    $VerbosePreference = 'SilentlyContinue'
+    $source = 'Connect-MSCloudLoginDefenderForEndpoint'
 
-    if ($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthenticationType -eq 'CredentialsWithApplicationId' -or
-        $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthenticationType -eq 'Credentials' -or
-        $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthenticationType -eq 'CredentialsWithTenantId')
+    if ($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthenticationType -eq 'CredentialsWithApplicationId' -or
+        $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthenticationType -eq 'Credentials' -or
+        $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthenticationType -eq 'CredentialsWithTenantId')
     {
-        Write-Verbose -Message 'Will try connecting with user credentials'
+        Add-MSCloudLoginAssistantEvent -Message 'Will try connecting with user credentials' -Source $source
         Connect-MSCloudLoginDefenderForEndpointWithUser
     }
-    elseif ($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthenticationType -eq 'ServicePrincipalWithSecret')
+    elseif ($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthenticationType -eq 'ServicePrincipalWithSecret')
     {
-        Write-Verbose -Message 'Will try connecting with Application Secret'
+        Add-MSCloudLoginAssistantEvent -Message 'Will try connecting with Application Secret' -Source $source
         Connect-MSCloudLoginDefenderForEndpointWithAppSecret
     }
-    elseif ($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthenticationType -eq 'ServicePrincipalWithThumbprint')
+    elseif ($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthenticationType -eq 'ServicePrincipalWithThumbprint')
     {
-        Write-Verbose -Message 'Will try connecting with Application Secret'
+        Add-MSCloudLoginAssistantEvent -Message 'Will try connecting with Application Secret' -Source $source
         Connect-MSCloudLoginDefenderForEndpointWithCertificateThumbprint
     }
-    elseif ($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthenticationType -eq 'AccessToken')
+    elseif ($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthenticationType -eq 'AccessToken')
     {
-        Write-Verbose -Message 'Will try connecting with Access Token'
-        $Ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToCoTaskMemUnicode($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AccessTokens[0])
+        Add-MSCloudLoginAssistantEvent -Message 'Will try connecting with Access Token' -Source $source
+        $Ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToCoTaskMemUnicode($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AccessTokens[0])
         $AccessTokenValue = [System.Runtime.InteropServices.Marshal]::PtrToStringUni($Ptr)
         [System.Runtime.InteropServices.Marshal]::ZeroFreeCoTaskMemUnicode($Ptr)
-        $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AccessToken = $AccessTokenValue
+        $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AccessToken = $AccessTokenValue
     }
 }
 
@@ -39,25 +39,27 @@ function Connect-MSCloudLoginDefenderForEndpointWithUser
     [CmdletBinding()]
     param()
 
-    if ([System.String]::IsNullOrEmpty($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.TenantId))
+    $source = 'Connect-MSCloudLoginDefenderForEndpointWithUser'
+
+    if ([System.String]::IsNullOrEmpty($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.TenantId))
     {
-        $tenantid = $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.Credentials.UserName.Split('@')[1]
+        $tenantid = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.Credentials.UserName.Split('@')[1]
     }
     else
     {
-        $tenantId = $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.TenantId
+        $tenantId = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.TenantId
     }
-    $username = $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.Credentials.UserName
-    $password = $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.Credentials.GetNetworkCredential().password
+    $username = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.Credentials.UserName
+    $password = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.Credentials.GetNetworkCredential().password
 
 
-    if ([System.String]::IsNullOrEmpty($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationId))
+    if ([System.String]::IsNullOrEmpty($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationId))
     {
         throw 'ApplicationId is required for this authentication type'
     }
-    $clientId = $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationId
-    $uri = "$($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthorizationUrl)/{0}/oauth2/token" -f $tenantid
-    $body = "resource=$($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.HostUrl)/&client_id=$clientId&grant_type=password&username={1}&password={0}" -f [System.Web.HttpUtility]::UrlEncode($password), $username
+    $clientId = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationId
+    $uri = "$($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthorizationUrl)/{0}/oauth2/token" -f $tenantid
+    $body = "resource=$($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.HostUrl)/&client_id=$clientId&grant_type=password&username={1}&password={0}" -f [System.Web.HttpUtility]::UrlEncode($password), $username
 
     # Request token through ROPC
     try
@@ -68,13 +70,13 @@ function Connect-MSCloudLoginDefenderForEndpointWithUser
             -ContentType 'application/x-www-form-urlencoded' `
             -ErrorAction SilentlyContinue
 
-        $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
+        $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
     }
     catch
     {
         if ($_.ErrorDetails.Message -like "*AADSTS50076*")
         {
-            Write-Verbose -Message "Account used required MFA"
+            Add-MSCloudLoginAssistantEvent -Message "Account used required MFA" -Source $source
             Connect-MSCloudLoginDefenderForEndpointWithUserMFA
         }
     }
@@ -85,24 +87,24 @@ function Connect-MSCloudLoginDefenderForEndpointWithUserMFA
     [CmdletBinding()]
     param()
 
-    if ([System.String]::IsNullOrEmpty($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.TenantId))
+    if ([System.String]::IsNullOrEmpty($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.TenantId))
     {
-        $tenantid = $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.Credentials.UserName.Split('@')[1]
+        $tenantid = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.Credentials.UserName.Split('@')[1]
     }
     else
     {
-        $tenantId = $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.TenantId
+        $tenantId = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.TenantId
     }
-    if ([System.String]::IsNullOrEmpty($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationId))
+    if ([System.String]::IsNullOrEmpty($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationId))
     {
         throw 'ApplicationId is required for this authentication type'
     }
-    $clientId = $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationId
-    $deviceCodeUri = "$($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthorizationUrl)/$tenantId/oauth2/devicecode"
+    $clientId = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationId
+    $deviceCodeUri = "$($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthorizationUrl)/$tenantId/oauth2/devicecode"
 
     $body = @{
         client_id = $clientId
-        resource  = $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.Scope
+        resource  = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.Scope
     }
     $DeviceCodeRequest = Invoke-RestMethod $deviceCodeUri `
             -Method POST `
@@ -112,7 +114,7 @@ function Connect-MSCloudLoginDefenderForEndpointWithUserMFA
 
     $TokenRequestParams = @{
         Method = 'POST'
-        Uri    = "$($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthorizationUrl)/$TenantId/oauth2/token"
+        Uri    = "$($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthorizationUrl)/$TenantId/oauth2/token"
         Body   = @{
             grant_type = "urn:ietf:params:oauth:grant-type:device_code"
             code       = $DeviceCodeRequest.device_code
@@ -140,7 +142,7 @@ function Connect-MSCloudLoginDefenderForEndpointWithUserMFA
         }
         Start-Sleep -Seconds 1
     }
-    $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
+    $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
 }
 
 function Connect-MSCloudLoginDefenderForEndpointWithAppSecret
@@ -149,8 +151,8 @@ function Connect-MSCloudLoginDefenderForEndpointWithAppSecret
     param()
 
 
-    $uri = "$($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthorizationUrl)/{0}/oauth2/v2.0/token" -f $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.TenantId
-    $body = "scope=$($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.Scope).default&client_id=$($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationId)&client_secret=$($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationSecret)&grant_type=client_credentials"
+    $uri = "$($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthorizationUrl)/{0}/oauth2/v2.0/token" -f $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.TenantId
+    $body = "scope=$($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.Scope).default&client_id=$($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationId)&client_secret=$($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationSecret)&grant_type=client_credentials"
 
     # Request token through ROPC
     $managementToken = Invoke-RestMethod $uri `
@@ -159,29 +161,30 @@ function Connect-MSCloudLoginDefenderForEndpointWithAppSecret
         -ContentType 'application/x-www-form-urlencoded' `
         -ErrorAction SilentlyContinue
 
-    $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
+    $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
 }
 
 function Connect-MSCloudLoginDefenderForEndpointWithCertificateThumbprint
 {
     [CmdletBinding()]
-    Param()
+    param()
+
     $WarningPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
-    $VerbosePreference = 'SilentlyContinue'
+    $source = 'Connect-MSCloudLoginDefenderForEndpointWithCertificateThumbprint'
 
-    Write-Verbose -Message 'Attempting to connect to Whiteboard using CertificateThumbprint'
-    $tenantId = $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.TenantId
+    Add-MSCloudLoginAssistantEvent -Message 'Attempting to connect to Whiteboard using CertificateThumbprint' -Source $source
+    $tenantId = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.TenantId
 
     try
     {
-        $Certificate = Get-Item "Cert:\CurrentUser\My\$($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.CertificateThumbprint)" -ErrorAction SilentlyContinue
+        $Certificate = Get-Item "Cert:\CurrentUser\My\$($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.CertificateThumbprint)" -ErrorAction SilentlyContinue
 
         if ($null -eq $Certificate)
         {
-            Write-Verbose 'Certificate not found in CurrentUser\My, trying LocalMachine\My'
+            Add-MSCloudLoginAssistantEvent 'Certificate not found in CurrentUser\My, trying LocalMachine\My' -Source $source
 
-            $Certificate = Get-ChildItem "Cert:\LocalMachine\My\$($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.CertificateThumbprint)" -ErrorAction SilentlyContinue
+            $Certificate = Get-ChildItem "Cert:\LocalMachine\My\$($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.CertificateThumbprint)" -ErrorAction SilentlyContinue
 
             if ($null -eq $Certificate)
             {
@@ -211,13 +214,13 @@ function Connect-MSCloudLoginDefenderForEndpointWithCertificateThumbprint
         # Create JWT payload
         $JWTPayLoad = @{
             # What endpoint is allowed to use this JWT
-            aud = "$($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthorizationUrl)/$TenantId/oauth2/token"
+            aud = "$($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthorizationUrl)/$TenantId/oauth2/token"
 
             # Expiration timestamp
             exp = $JWTExpiration
 
             # Issuer = your application
-            iss = $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationID
+            iss = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationID
 
             # JWT ID: random guid
             jti = [guid]::NewGuid()
@@ -226,7 +229,7 @@ function Connect-MSCloudLoginDefenderForEndpointWithCertificateThumbprint
             nbf = $NotBefore
 
             # JWT Subject
-            sub = $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationID
+            sub = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationID
         }
 
         # Convert header and payload to base64
@@ -256,14 +259,14 @@ function Connect-MSCloudLoginDefenderForEndpointWithCertificateThumbprint
 
         # Create a hash with body parameters
         $Body = @{
-            client_id             = $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationID
+            client_id             = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.ApplicationID
             client_assertion      = $JWT
             client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
-            scope                 = $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.Scope
+            scope                 = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.Scope
             grant_type            = 'client_credentials'
         }
 
-        $Url = "$($Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthorizationUrl)/$TenantId/oauth2/v2.0/token"
+        $Url = "$($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthorizationUrl)/$TenantId/oauth2/v2.0/token"
 
         # Use the self-generated JWT as Authorization
         $Header = @{
@@ -282,8 +285,8 @@ function Connect-MSCloudLoginDefenderForEndpointWithCertificateThumbprint
         $Request = Invoke-RestMethod @PostSplat
 
         # View access_token
-        $Global:MSCloudLoginConnectionProfile.DefenderForEndpoint.AccessToken = 'Bearer ' + $Request.access_token
-        Write-Verbose -Message 'Successfully connected to the DefenderForEndpoint API using Certificate Thumbprint'
+        $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AccessToken = 'Bearer ' + $Request.access_token
+        Add-MSCloudLoginAssistantEvent -Message 'Successfully connected to the DefenderForEndpoint API using Certificate Thumbprint' -Source $source
     }
     catch
     {

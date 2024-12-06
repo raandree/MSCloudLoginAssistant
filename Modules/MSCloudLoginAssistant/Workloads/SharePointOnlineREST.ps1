@@ -6,22 +6,22 @@ function Connect-MSCloudLoginSharePointOnlineREST
     $WarningPreference = 'SilentlyContinue'
     $InformationPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
-    $VerbosePreference = 'SilentlyContinue'
+    $source = 'Connect-MSCloudLoginSharePointOnlineREST'
 
-    if (-not $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AccessToken)
+    if (-not $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AccessToken)
     {
         try
         {
-            if ($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthenticationType -eq 'CredentialsWithApplicationId' -or
-                $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthenticationType -eq 'Credentials' -or
-                $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthenticationType -eq 'CredentialsWithTenantId')
+            if ($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthenticationType -eq 'CredentialsWithApplicationId' -or
+                $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthenticationType -eq 'Credentials' -or
+                $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthenticationType -eq 'CredentialsWithTenantId')
             {
-                Write-Verbose -Message 'Will try connecting with user credentials'
+                Add-MSCloudLoginAssistantEvent -Message 'Will try connecting with user credentials' -Source $source
                 Connect-MSCloudLoginSharePointOnlineRESTWithUser
             }
-            elseif ($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthenticationType -eq 'ServicePrincipalWithThumbprint')
+            elseif ($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthenticationType -eq 'ServicePrincipalWithThumbprint')
             {
-                Write-Verbose -Message "Attempting to connect to SharePoint Online REST using AAD App {$ApplicationID}"
+                Add-MSCloudLoginAssistantEvent -Message "Attempting to connect to SharePoint Online REST using AAD App {$ApplicationID}" -Source $source
                 Connect-MSCloudLoginSharePointOnlineRESTWithCertificateThumbprint
             }
             else
@@ -29,10 +29,10 @@ function Connect-MSCloudLoginSharePointOnlineREST
                 throw "Specified authentication method is not supported."
             }
 
-            $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.ConnectedDateTime = [System.DateTime]::Now.ToString()
-            $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.Connected = $true
-            $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.MultiFactorAuthentication = $false
-            Write-Verbose -Message "Successfully connected to SharePoint Online REST using AAD App {$ApplicationID}"
+            $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.ConnectedDateTime = [System.DateTime]::Now.ToString()
+            $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.Connected = $true
+            $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.MultiFactorAuthentication = $false
+            Add-MSCloudLoginAssistantEvent -Message "Successfully connected to SharePoint Online REST using AAD App {$ApplicationID}" -Source $source
         }
         catch
         {
@@ -46,20 +46,22 @@ function Connect-MSCloudLoginSharePointOnlineRESTWithUser
     [CmdletBinding()]
     param()
 
-    if ([System.String]::IsNullOrEmpty($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId))
+    $source = 'Connect-MSCloudLoginSharePointOnlineRESTWithUser'
+
+    if ([System.String]::IsNullOrEmpty($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId))
     {
-        $tenantid = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.Credentials.UserName.Split('@')[1]
+        $tenantid = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.Credentials.UserName.Split('@')[1]
     }
     else
     {
-        $tenantId = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId
+        $tenantId = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId
     }
-    $username = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.Credentials.UserName
-    $password = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.Credentials.GetNetworkCredential().password
+    $username = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.Credentials.UserName
+    $password = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.Credentials.GetNetworkCredential().password
 
     $clientId = '31359c7f-bd7e-475c-86db-fdb8c937548e'
-    $uri = "$($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthorizationUrl)/{0}/oauth2/token" -f $tenantid
-    $body = "resource=$($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.HostUrl)/&client_id=$clientId&grant_type=password&username={1}&password={0}" -f [System.Web.HttpUtility]::UrlEncode($password), $username
+    $uri = "$($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthorizationUrl)/{0}/oauth2/token" -f $tenantid
+    $body = "resource=$($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.HostUrl)/&client_id=$clientId&grant_type=password&username={1}&password={0}" -f [System.Web.HttpUtility]::UrlEncode($password), $username
 
     # Request token through ROPC
     try
@@ -70,15 +72,15 @@ function Connect-MSCloudLoginSharePointOnlineRESTWithUser
             -ContentType 'application/x-www-form-urlencoded' `
             -ErrorAction SilentlyContinue
 
-        $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
-        $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.Connected = $true
-        $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.ConnectedDateTime = [System.DateTime]::Now.ToString()
+        $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
+        $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.Connected = $true
+        $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.ConnectedDateTime = [System.DateTime]::Now.ToString()
     }
     catch
     {
         if ($_.ErrorDetails.Message -like "*AADSTS50076*")
         {
-            Write-Verbose -Message "Account used required MFA"
+            Add-MSCloudLoginAssistantEvent -Message "Account used required MFA" -Source $source
             Connect-MSCloudLoginSharePointOnlineRESTWithUserMFA
         }
     }
@@ -88,20 +90,20 @@ function Connect-MSCloudLoginSharePointOnlineRESTWithUserMFA
     [CmdletBinding()]
     param()
 
-    if ([System.String]::IsNullOrEmpty($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId))
+    if ([System.String]::IsNullOrEmpty($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId))
     {
-        $tenantid = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.Credentials.UserName.Split('@')[1]
+        $tenantid = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.Credentials.UserName.Split('@')[1]
     }
     else
     {
-        $tenantId = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId
+        $tenantId = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId
     }
     $clientId = '31359c7f-bd7e-475c-86db-fdb8c937548e'
-    $deviceCodeUri = "$($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthorizationUrl)/$tenantId/oauth2/devicecode"
+    $deviceCodeUri = "$($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthorizationUrl)/$tenantId/oauth2/devicecode"
 
     $body = @{
         client_id = $clientId
-        resource  = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl
+        resource  = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AdminUrl
     }
     $DeviceCodeRequest = Invoke-RestMethod $deviceCodeUri `
             -Method POST `
@@ -111,7 +113,7 @@ function Connect-MSCloudLoginSharePointOnlineRESTWithUserMFA
 
     $TokenRequestParams = @{
         Method = 'POST'
-        Uri    = "$($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthorizationUrl)/$TenantId/oauth2/token"
+        Uri    = "$($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthorizationUrl)/$TenantId/oauth2/token"
         Body   = @{
             grant_type = "urn:ietf:params:oauth:grant-type:device_code"
             code       = $DeviceCodeRequest.device_code
@@ -139,10 +141,10 @@ function Connect-MSCloudLoginSharePointOnlineRESTWithUserMFA
         }
         Start-Sleep -Seconds 1
     }
-    $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
-    $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.Connected = $true
-    $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.MultiFactorAuthentication = $true
-    $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.ConnectedDateTime = [System.DateTime]::Now.ToString()
+    $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AccessToken = $managementToken.token_type.ToString() + ' ' + $managementToken.access_token.ToString()
+    $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.Connected = $true
+    $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.MultiFactorAuthentication = $true
+    $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.ConnectedDateTime = [System.DateTime]::Now.ToString()
 }
 
 function Connect-MSCloudLoginSharePointOnlineRESTWithCertificateThumbprint
@@ -151,20 +153,20 @@ function Connect-MSCloudLoginSharePointOnlineRESTWithCertificateThumbprint
     Param()
     $WarningPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
-    $VerbosePreference = 'SilentlyContinue'
+    $source = 'Connect-MSCloudLoginSharePointOnlineRESTWithCertificateThumbprint'
 
-    Write-Verbose -Message 'Attempting to connect to SharePointOnlineREST using CertificateThumbprint'
-    $tenantId = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId
+    Add-MSCloudLoginAssistantEvent -Message 'Attempting to connect to SharePointOnlineREST using CertificateThumbprint' -Source $source
+    $tenantId = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.TenantId
 
     try
     {
-        $Certificate = Get-Item "Cert:\CurrentUser\My\$($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.CertificateThumbprint)" -ErrorAction SilentlyContinue
+        $Certificate = Get-Item "Cert:\CurrentUser\My\$($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.CertificateThumbprint)" -ErrorAction SilentlyContinue
 
         if ($null -eq $Certificate)
         {
-            Write-Verbose 'Certificate not found in CurrentUser\My, trying LocalMachine\My'
+            Add-MSCloudLoginAssistantEvent 'Certificate not found in CurrentUser\My, trying LocalMachine\My' -Source $source
 
-            $Certificate = Get-ChildItem "Cert:\LocalMachine\My\$($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.CertificateThumbprint)" -ErrorAction SilentlyContinue
+            $Certificate = Get-ChildItem "Cert:\LocalMachine\My\$($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.CertificateThumbprint)" -ErrorAction SilentlyContinue
 
             if ($null -eq $Certificate)
             {
@@ -194,13 +196,13 @@ function Connect-MSCloudLoginSharePointOnlineRESTWithCertificateThumbprint
         # Create JWT payload
         $JWTPayLoad = @{
             # What endpoint is allowed to use this JWT
-            aud = "$($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthorizationUrl)/$TenantId/oauth2/token"
+            aud = "$($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthorizationUrl)/$TenantId/oauth2/token"
 
             # Expiration timestamp
             exp = $JWTExpiration
 
             # Issuer = your application
-            iss = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.ApplicationID
+            iss = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.ApplicationID
 
             # JWT ID: random guid
             jti = [guid]::NewGuid()
@@ -209,7 +211,7 @@ function Connect-MSCloudLoginSharePointOnlineRESTWithCertificateThumbprint
             nbf = $NotBefore
 
             # JWT Subject
-            sub = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.ApplicationID
+            sub = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.ApplicationID
         }
 
         # Convert header and payload to base64
@@ -239,14 +241,14 @@ function Connect-MSCloudLoginSharePointOnlineRESTWithCertificateThumbprint
 
         # Create a hash with body parameters
         $Body = @{
-            client_id             = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.ApplicationID
+            client_id             = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.ApplicationID
             client_assertion      = $JWT
             client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
-            scope                 = $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.Scope
+            scope                 = $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.Scope
             grant_type            = 'client_credentials'
         }
 
-        $Url = "$($Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthorizationUrl)/$TenantId/oauth2/v2.0/token"
+        $Url = "$($Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AuthorizationUrl)/$TenantId/oauth2/v2.0/token"
 
         # Use the self-generated JWT as Authorization
         $Header = @{
@@ -265,11 +267,11 @@ function Connect-MSCloudLoginSharePointOnlineRESTWithCertificateThumbprint
         $Request = Invoke-RestMethod @PostSplat
 
         # View access_token
-        $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.AccessToken = 'Bearer ' + $Request.access_token
-        Write-Verbose -Message 'Successfully connected to the SharePoint Online REST API using Certificate Thumbprint'
+        $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.AccessToken = 'Bearer ' + $Request.access_token
+        Add-MSCloudLoginAssistantEvent -Message 'Successfully connected to the SharePoint Online REST API using Certificate Thumbprint' -Source $source
 
-        $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.Connected = $true
-        $Global:MSCloudLoginConnectionProfile.SharePointOnlineREST.ConnectedDateTime = [System.DateTime]::Now.ToString()
+        $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.Connected = $true
+        $Script:MSCloudLoginConnectionProfile.SharePointOnlineREST.ConnectedDateTime = [System.DateTime]::Now.ToString()
     }
     catch
     {
