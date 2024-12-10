@@ -3,7 +3,6 @@ function Connect-MSCloudLoginAdminAPI
     [CmdletBinding()]
     param()
 
-    $WarningPreference = 'SilentlyContinue'
     $InformationPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginAdminAPI'
@@ -26,7 +25,7 @@ function Connect-MSCloudLoginAdminAPI
             }
             else
             {
-                throw "Specified authentication method is not supported."
+                throw 'Specified authentication method is not supported.'
             }
 
             $Script:MSCloudLoginConnectionProfile.AdminAPI.ConnectedDateTime = [System.DateTime]::Now.ToString()
@@ -78,9 +77,9 @@ function Connect-MSCloudLoginAdminAPIWithUser
     }
     catch
     {
-        if ($_.ErrorDetails.Message -like "*AADSTS50076*")
+        if ($_.ErrorDetails.Message -like '*AADSTS50076*')
         {
-            Add-MSCloudLoginAssistantEvent -Message "Account used required MFA" -Source $source
+            Add-MSCloudLoginAssistantEvent -Message 'Account used required MFA' -Source $source
             Connect-MSCloudLoginAdminAPIWithUserMFA
         }
     }
@@ -106,8 +105,8 @@ function Connect-MSCloudLoginAdminAPIWithUserMFA
         resource  = $Script:MSCloudLoginConnectionProfile.AdminAPI.AdminUrl
     }
     $DeviceCodeRequest = Invoke-RestMethod $deviceCodeUri `
-            -Method POST `
-            -Body $body
+        -Method POST `
+        -Body $body
 
     Write-Host "`r`n$($DeviceCodeRequest.message)" -ForegroundColor Yellow
 
@@ -115,7 +114,7 @@ function Connect-MSCloudLoginAdminAPIWithUserMFA
         Method = 'POST'
         Uri    = "$($Script:MSCloudLoginConnectionProfile.AdminAPI.AuthorizationUrl)/$TenantId/oauth2/token"
         Body   = @{
-            grant_type = "urn:ietf:params:oauth:grant-type:device_code"
+            grant_type = 'urn:ietf:params:oauth:grant-type:device_code'
             code       = $DeviceCodeRequest.device_code
             client_id  = $clientId
         }
@@ -134,7 +133,7 @@ function Connect-MSCloudLoginAdminAPIWithUserMFA
         catch
         {
             $Message = $_.ErrorDetails.Message | ConvertFrom-Json
-            if ($Message.error -ne "authorization_pending")
+            if ($Message.error -ne 'authorization_pending')
             {
                 throw
             }
@@ -150,8 +149,8 @@ function Connect-MSCloudLoginAdminAPIWithUserMFA
 function Connect-MSCloudLoginAdminAPIWithCertificateThumbprint
 {
     [CmdletBinding()]
-    Param()
-    $WarningPreference = 'SilentlyContinue'
+    param()
+
     $ProgressPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginAdminAPIWithCertificateThumbprint'
 

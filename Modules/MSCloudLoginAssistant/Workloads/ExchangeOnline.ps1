@@ -7,7 +7,6 @@ function Connect-MSCloudLoginExchangeOnline
         $SkipPSSessionEvaluation
     )
 
-    $WarningPreference = 'SilentlyContinue'
     $InformationPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginExchangeOnline'
@@ -20,7 +19,7 @@ function Connect-MSCloudLoginExchangeOnline
     }
 
     Add-MSCloudLoginAssistantEvent "Current loaded module: $($Script:MSCloudLoginCurrentLoadedModule)" -Source $source
-    if ($Script:MSCloudLoginCurrentLoadedModule -eq "EXO")
+    if ($Script:MSCloudLoginCurrentLoadedModule -eq 'EXO')
     {
         try
         {
@@ -28,7 +27,7 @@ function Connect-MSCloudLoginExchangeOnline
 
             if (-not $loadAllCmdlets)
             {
-                Add-MSCloudLoginAssistantEvent "Checking for missing commands" -Source $source
+                Add-MSCloudLoginAssistantEvent 'Checking for missing commands' -Source $source
                 Add-MSCloudLoginAssistantEvent "Cmdlets to load: $($Script:MSCloudLoginConnectionProfile.ExchangeOnline.CmdletsToLoad -join ',')" -Source $source
                 Add-MSCloudLoginAssistantEvent "Loaded Cmdlets: $($Script:MSCloudLoginConnectionProfile.ExchangeOnline.LoadedCmdlets -join ',')" -Source $source
                 $missingCommands = $Script:MSCloudLoginConnectionProfile.ExchangeOnline.CmdletsToLoad | Where-Object -FilterScript {
@@ -52,9 +51,12 @@ function Connect-MSCloudLoginExchangeOnline
         }
     }
 
-    try {
+    try
+    {
         Add-MSCloudLoginAssistantEvent "Current domain: $($(Get-AcceptedDomain).Name)" -ErrorAction Continue -Source $source
-    } catch {
+    }
+    catch
+    {
         Add-MSCloudLoginAssistantEvent -Message 'Failed to load Get-AcceptedDomain' -Source $source -EntryType 'Error'
     }
 
@@ -127,7 +129,7 @@ function Connect-MSCloudLoginExchangeOnline
                 $null -ne $Script:MSCloudLoginConnectionProfile.ExchangeOnline.Endpoints.ConnectionUri -and `
                 $null -ne $Script:MSCloudLoginConnectionProfile.ExchangeOnline.Endpoints.AzureADAuthorizationEndpointUri)
             {
-                Add-MSCloudLoginAssistantEvent -Message "Connecting by endpoints URI" -Source $source
+                Add-MSCloudLoginAssistantEvent -Message 'Connecting by endpoints URI' -Source $source
                 Connect-ExchangeOnline -AppId $Script:MSCloudLoginConnectionProfile.ExchangeOnline.ApplicationId `
                     -Organization $Script:MSCloudLoginConnectionProfile.OrganizationName `
                     -CertificateThumbprint $Script:MSCloudLoginConnectionProfile.ExchangeOnline.CertificateThumbprint `
@@ -141,7 +143,7 @@ function Connect-MSCloudLoginExchangeOnline
             }
             else
             {
-                Add-MSCloudLoginAssistantEvent -Message "Connecting by environment name" -Source $source
+                Add-MSCloudLoginAssistantEvent -Message 'Connecting by environment name' -Source $source
                 Connect-ExchangeOnline -AppId $Script:MSCloudLoginConnectionProfile.ExchangeOnline.ApplicationId `
                     -Organization $Script:MSCloudLoginConnectionProfile.OrganizationName `
                     -CertificateThumbprint $Script:MSCloudLoginConnectionProfile.ExchangeOnline.CertificateThumbprint `
@@ -261,7 +263,7 @@ function Connect-MSCloudLoginExchangeOnline
     }
     elseif ($Script:MSCloudLoginConnectionProfile.ExchangeOnline.AuthenticationType -eq 'AccessTokens')
     {
-        Add-MSCloudLoginAssistantEvent -Message "Connecting to EXO with AccessTokens" -Source $source
+        Add-MSCloudLoginAssistantEvent -Message 'Connecting to EXO with AccessTokens' -Source $source
         try
         {
             $AccessTokenValue = $Script:MSCloudLoginConnectionProfile.ExchangeOnline.AccessTokens[0]
@@ -295,7 +297,7 @@ function Connect-MSCloudLoginExchangeOnline
         Add-MSCloudLoginAssistantEvent -Message 'No valid authentication type found' -Source $source
         throw 'No valid authentication type found'
     }
-    $Script:MSCloudLoginCurrentLoadedModule = "EXO"
+    $Script:MSCloudLoginCurrentLoadedModule = 'EXO'
 
     # Usually the tmpEXO* modules, but it might also be from another PSSession
     $loadedEXOProxyModule = Get-Module | Where-Object -FilterScript { $_.ExportedCommands.Keys.Contains('Get-AcceptedDomain') }
@@ -310,7 +312,7 @@ function Connect-MSCloudLoginExchangeOnline
 function Connect-MSCloudLoginExchangeOnlineMFA
 {
     [CmdletBinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $true)]
         [System.Management.Automation.PSCredential]
         $Credentials,
@@ -319,7 +321,7 @@ function Connect-MSCloudLoginExchangeOnlineMFA
         [System.String]
         $TenantId
     )
-    $WarningPreference = 'SilentlyContinue'
+
     $ProgressPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginExchangeOnlineMFA'
 

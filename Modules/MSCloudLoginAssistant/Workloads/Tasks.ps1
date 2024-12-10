@@ -4,7 +4,6 @@ function Connect-MSCloudLoginTasks
     param()
 
     $ProgressPreference = 'SilentlyContinue'
-    $WarningPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginTasks'
 
     if ($Script:MSCloudLoginConnectionProfile.Tasks.AuthenticationType -eq 'CredentialsWithApplicationId' -or
@@ -69,9 +68,9 @@ function Connect-MSCloudLoginTasksWithUser
     }
     catch
     {
-        if ($_.ErrorDetails.Message -like "*AADSTS50076*")
+        if ($_.ErrorDetails.Message -like '*AADSTS50076*')
         {
-            Add-MSCloudLoginAssistantEvent -Message "Account used required MFA" -Source $source
+            Add-MSCloudLoginAssistantEvent -Message 'Account used required MFA' -Source $source
             Connect-MSCloudLoginTasksWithUserMFA
         }
     }
@@ -100,8 +99,8 @@ function Connect-MSCloudLoginTasksWithUserMFA
         resource  = $Script:MSCloudLoginConnectionProfile.Tasks.ResourceUrl
     }
     $DeviceCodeRequest = Invoke-RestMethod $deviceCodeUri `
-            -Method POST `
-            -Body $body
+        -Method POST `
+        -Body $body
 
     Add-MSCloudLoginAssistantEvent -Message "`r`n$($DeviceCodeRequest.message)" -Source $source
 
@@ -109,7 +108,7 @@ function Connect-MSCloudLoginTasksWithUserMFA
         Method = 'POST'
         Uri    = "$($Script:MSCloudLoginConnectionProfile.Tasks.AuthorizationUrl)/$TenantId/oauth2/token"
         Body   = @{
-            grant_type = "urn:ietf:params:oauth:grant-type:device_code"
+            grant_type = 'urn:ietf:params:oauth:grant-type:device_code'
             code       = $DeviceCodeRequest.device_code
             client_id  = $clientId
         }
@@ -128,7 +127,7 @@ function Connect-MSCloudLoginTasksWithUserMFA
         catch
         {
             $Message = $_.ErrorDetails.Message | ConvertFrom-Json
-            if ($Message.error -ne "authorization_pending")
+            if ($Message.error -ne 'authorization_pending')
             {
                 throw
             }
@@ -159,8 +158,8 @@ function Connect-MSCloudLoginTasksWithAppSecret
 function Connect-MSCloudLoginTasksWithCertificateThumbprint
 {
     [CmdletBinding()]
-    Param()
-    $WarningPreference = 'SilentlyContinue'
+    param()
+
     $ProgressPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginTasksWithCertificateThumbprint'
 

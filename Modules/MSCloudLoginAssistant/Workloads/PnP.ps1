@@ -7,7 +7,6 @@ function Connect-MSCloudLoginPnP
     )
 
     $ProgressPreference = 'SilentlyContinue'
-    $WarningPreference  = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginPnP'
 
     if ($Script:MSCloudLoginConnectionProfile.PnP.Connected)
@@ -20,7 +19,7 @@ function Connect-MSCloudLoginPnP
     # Workaround to fix: https://github.com/microsoft/Microsoft365DSC/issues/4746
     if (-not (Get-Module Microsoft.Graph.Authentication -ErrorAction SilentlyContinue))
     {
-        Add-MSCloudLoginAssistantEvent -Message "Explicit import of PS-module Microsoft.Graph.Authentication" -Source $source
+        Add-MSCloudLoginAssistantEvent -Message 'Explicit import of PS-module Microsoft.Graph.Authentication' -Source $source
         Import-Module Microsoft.Graph.Authentication -ErrorAction SilentlyContinue
     }
 
@@ -121,14 +120,14 @@ function Connect-MSCloudLoginPnP
                 if ($Script:MSCloudLoginConnectionProfile.PnP.ConnectionUrl)
                 {
                     if ($null -ne $Script:MSCloudLoginConnectionProfile.PnP.Endpoints -and `
-                    $null -ne $Script:MSCloudLoginConnectionProfile.PnP.Endpoints.ConnectionUri -and `
-                    $null -ne $Script:MSCloudLoginConnectionProfile.PnP.Endpoints.AzureADAuthorizationEndpointUri)
+                        $null -ne $Script:MSCloudLoginConnectionProfile.PnP.Endpoints.ConnectionUri -and `
+                        $null -ne $Script:MSCloudLoginConnectionProfile.PnP.Endpoints.AzureADAuthorizationEndpointUri)
                     {
                         $accessToken = Get-MSCloudLoginAccessToken -ConnectionUri $Script:MSCloudLoginConnectionProfile.PnP.Endpoints.ConnectionUri `
-                                            -AzureADAuthorizationEndpointUri $Script:MSCloudLoginConnectionProfile.PnP.Endpoints.AzureADAuthorizationEndpointUri `
-                                            -ApplicationId $Script:MSCloudLoginConnectionProfile.PnP.ApplicationId `
-                                            -TenantId $Script:MSCloudLoginConnectionProfile.PnP.TenantId `
-                                            -CertificateThumbprint $Script:MSCloudLoginConnectionProfile.PnP.CertificateThumbprint
+                            -AzureADAuthorizationEndpointUri $Script:MSCloudLoginConnectionProfile.PnP.Endpoints.AzureADAuthorizationEndpointUri `
+                            -ApplicationId $Script:MSCloudLoginConnectionProfile.PnP.ApplicationId `
+                            -TenantId $Script:MSCloudLoginConnectionProfile.PnP.TenantId `
+                            -CertificateThumbprint $Script:MSCloudLoginConnectionProfile.PnP.CertificateThumbprint
                         $Script:MSCloudLoginConnectionProfile.PnP.AccessTokens += $accessToken
 
                         Add-MSCloudLoginAssistantEvent -Message 'Connecting with Service Principal - Thumbprint' -Source $source
@@ -260,7 +259,7 @@ function Connect-MSCloudLoginPnP
             }
             elseif ($Script:MSCloudLoginConnectionProfile.PnP.AuthenticationType -eq 'CredentialsWithTenantId')
             {
-                throw "You cannot specify TenantId with Credentials when connecting to PnP."
+                throw 'You cannot specify TenantId with Credentials when connecting to PnP.'
             }
             elseif ($Script:MSCloudLoginConnectionProfile.PnP.AuthenticationType -eq 'Credentials')
             {
@@ -308,27 +307,27 @@ function Connect-MSCloudLoginPnP
                     $oauth2 = Invoke-RestMethod $url -Method 'POST' -Headers $headers -ContentType 'application/x-www-form-urlencoded' -Body $body
                     $accessToken = $oauth2.access_token
                 }
-                elseif('http://localhost:40342' -eq $env:IMDS_ENDPOINT)
+                elseif ('http://localhost:40342' -eq $env:IMDS_ENDPOINT)
                 {
                     #Get endpoint for Azure Arc Connected Device
-                    $apiVersion = "2020-06-01"
+                    $apiVersion = '2020-06-01'
                     $resource = "https://$resourceEndpoint"
-                    $endpoint = "{0}?resource={1}&api-version={2}" -f $env:IDENTITY_ENDPOINT,$resource,$apiVersion
-                    $secretFile = ""
+                    $endpoint = '{0}?resource={1}&api-version={2}' -f $env:IDENTITY_ENDPOINT, $resource, $apiVersion
+                    $secretFile = ''
                     try
                     {
-                        Invoke-WebRequest -Method GET -Uri $endpoint -Headers @{Metadata='True'} -UseBasicParsing
+                        Invoke-WebRequest -Method GET -Uri $endpoint -Headers @{Metadata = 'True' } -UseBasicParsing
                     }
                     catch
                     {
-                        $wwwAuthHeader = $_.Exception.Response.Headers["WWW-Authenticate"]
-                        if ($wwwAuthHeader -match "Basic realm=.+")
+                        $wwwAuthHeader = $_.Exception.Response.Headers['WWW-Authenticate']
+                        if ($wwwAuthHeader -match 'Basic realm=.+')
                         {
-                            $secretFile = ($wwwAuthHeader -split "Basic realm=")[1]
+                            $secretFile = ($wwwAuthHeader -split 'Basic realm=')[1]
                         }
                     }
                     $secret = Get-Content -Raw $secretFile
-                    $response = Invoke-WebRequest -Method GET -Uri $endpoint -Headers @{Metadata='True'; Authorization="Basic $secret"} -UseBasicParsing
+                    $response = Invoke-WebRequest -Method GET -Uri $endpoint -Headers @{Metadata = 'True'; Authorization = "Basic $secret" } -UseBasicParsing
                     if ($response)
                     {
                         $accessToken = (ConvertFrom-Json -InputObject $response.Content).access_token

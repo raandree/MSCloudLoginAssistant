@@ -3,14 +3,13 @@ function Connect-MSCloudLoginSecurityCompliance
     [CmdletBinding()]
     param()
 
-    $WarningPreference = 'SilentlyContinue'
     $InformationPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginSecurityCompliance'
 
     Add-MSCloudLoginAssistantEvent -Message 'Trying to get the Get-ComplianceSearch command from within MSCloudLoginAssistant' -Source $source
 
-    if ($Script:MSCloudLoginCurrentLoadedModule -eq "SC")
+    if ($Script:MSCloudLoginCurrentLoadedModule -eq 'SC')
     {
         try
         {
@@ -74,10 +73,10 @@ function Connect-MSCloudLoginSecurityCompliance
         {
             Add-MSCloudLoginAssistantEvent -Message 'Connecting to Security & Compliance with Service Principal and Certificate Thumbprint' -Source $source
             if ($null -ne $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.Endpoints -and `
-            $null -ne $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.Endpoints.ConnectionUri -and `
-            $null -ne $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.Endpoints.AzureADAuthorizationEndpointUri)
+                $null -ne $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.Endpoints.ConnectionUri -and `
+                $null -ne $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.Endpoints.AzureADAuthorizationEndpointUri)
             {
-                Add-MSCloudLoginAssistantEvent -Message "Connecting by endpoints URI" -Source $source
+                Add-MSCloudLoginAssistantEvent -Message 'Connecting by endpoints URI' -Source $source
                 Connect-IPPSSession -AppId $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.ApplicationId `
                     -Organization $Script:MSCloudLoginConnectionProfile.OrganizationName `
                     -CertificateThumbprint $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.CertificateThumbprint `
@@ -91,10 +90,10 @@ function Connect-MSCloudLoginSecurityCompliance
             }
             else
             {
-                Add-MSCloudLoginAssistantEvent -Message "Connecting by environment name" -Source $source
+                Add-MSCloudLoginAssistantEvent -Message 'Connecting by environment name' -Source $source
                 switch ($Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.EnvironmentName)
                 {
-                    {$_ -eq "AzureUSGovernment" -or $_ -eq "AzureDOD"}
+                    { $_ -eq 'AzureUSGovernment' -or $_ -eq 'AzureDOD' }
                     {
                         Connect-IPPSSession -AppId $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.ApplicationId `
                             -CertificateThumbprint $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.CertificateThumbprint `
@@ -134,7 +133,7 @@ function Connect-MSCloudLoginSecurityCompliance
             Add-MSCloudLoginAssistantEvent -Message 'Connecting to Security & Compliance with Service Principal and Certificate Path' -Source $source
             switch ($Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.EnvironmentName)
             {
-                {$_ -eq "AzureUSGovernment" -or $_ -eq "AzureDOD"}
+                { $_ -eq 'AzureUSGovernment' -or $_ -eq 'AzureDOD' }
                 {
                     Connect-IPPSSession -AppId $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.ApplicationId `
                         -CertificateFilePath $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.CertificatePath `
@@ -189,12 +188,12 @@ function Connect-MSCloudLoginSecurityCompliance
             Connect-MSCloudLoginSecurityComplianceMFA -TenantId $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.TenantId
         }
     }
-    elseif($Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.AuthenticationType -eq 'AccessToken')
+    elseif ($Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.AuthenticationType -eq 'AccessToken')
     {
         Add-MSCloudLoginAssistantEvent -Message 'Connecting to Security & Compliance with Access Token' -Source $source
         Connect-M365Tenant -Workload 'ExchangeOnline' `
-                           -AccessTokens $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.AccessTokens `
-                           -TenantId $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.TenantId
+            -AccessTokens $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.AccessTokens `
+            -TenantId $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.TenantId
         $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.ConnectedDateTime = [System.DateTime]::Now.ToString()
         $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.MultiFactorAuthentication = $false
         $Script:MSCloudLoginConnectionProfile.SecurityComplianceCenter.Connected = $true
@@ -220,7 +219,7 @@ function Connect-MSCloudLoginSecurityCompliance
         }
     }
 
-    $Script:MSCloudLoginCurrentLoadedModule = "SC"
+    $Script:MSCloudLoginCurrentLoadedModule = 'SC'
 }
 
 function Connect-MSCloudLoginSecurityComplianceMFA
@@ -232,7 +231,6 @@ function Connect-MSCloudLoginSecurityComplianceMFA
         $TenantId
     )
 
-    $WarningPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
     $InformationPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginSecurityComplianceMFA'

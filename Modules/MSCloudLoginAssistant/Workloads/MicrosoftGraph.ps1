@@ -4,7 +4,6 @@ function Connect-MSCloudLoginMicrosoftGraph
     param()
 
     $ProgressPreference = 'SilentlyContinue'
-    $WarningPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginMicrosoftGraph'
 
     # If the current profile is not the same we expect, make the switch.
@@ -54,27 +53,27 @@ function Connect-MSCloudLoginMicrosoftGraph
             $oauth2 = Invoke-RestMethod $url -Method 'POST' -Headers $headers -ContentType 'application/x-www-form-urlencoded' -Body $body
             $accessToken = $oauth2.access_token
         }
-        elseif('http://localhost:40342' -eq $env:IMDS_ENDPOINT)
+        elseif ('http://localhost:40342' -eq $env:IMDS_ENDPOINT)
         {
             #Get endpoint for Azure Arc Connected Device
-            $apiVersion = "2020-06-01"
+            $apiVersion = '2020-06-01'
             $resource = "https://$resourceEndpoint"
-            $endpoint = "{0}?resource={1}&api-version={2}" -f $env:IDENTITY_ENDPOINT,$resource,$apiVersion
-            $secretFile = ""
+            $endpoint = '{0}?resource={1}&api-version={2}' -f $env:IDENTITY_ENDPOINT, $resource, $apiVersion
+            $secretFile = ''
             try
             {
-                Invoke-WebRequest -Method GET -Uri $endpoint -Headers @{Metadata='True'} -UseBasicParsing
+                Invoke-WebRequest -Method GET -Uri $endpoint -Headers @{Metadata = 'True' } -UseBasicParsing
             }
             catch
             {
-                $wwwAuthHeader = $_.Exception.Response.Headers["WWW-Authenticate"]
-                if ($wwwAuthHeader -match "Basic realm=.+")
+                $wwwAuthHeader = $_.Exception.Response.Headers['WWW-Authenticate']
+                if ($wwwAuthHeader -match 'Basic realm=.+')
                 {
-                    $secretFile = ($wwwAuthHeader -split "Basic realm=")[1]
+                    $secretFile = ($wwwAuthHeader -split 'Basic realm=')[1]
                 }
             }
             $secret = Get-Content -Raw $secretFile
-            $response = Invoke-WebRequest -Method GET -Uri $endpoint -Headers @{Metadata='True'; Authorization="Basic $secret"} -UseBasicParsing
+            $response = Invoke-WebRequest -Method GET -Uri $endpoint -Headers @{Metadata = 'True'; Authorization = "Basic $secret" } -UseBasicParsing
             if ($response)
             {
                 $accessToken = (ConvertFrom-Json -InputObject $response.Content).access_token
@@ -105,17 +104,17 @@ function Connect-MSCloudLoginMicrosoftGraph
                     $null -ne $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.Endpoints.AzureADAuthorizationEndpointUri)
                 {
                     $accessToken = Get-MSCloudLoginAccessToken -ConnectionUri $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.Endpoints.ConnectionUri `
-                                                -AzureADAuthorizationEndpointUri $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.Endpoints.AzureADAuthorizationEndpointUri `
-                                                -ApplicationId $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.ApplicationId `
-                                                -TenantId $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.TenantId `
-                                                -CertificateThumbprint $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.CertificateThumbprint
+                        -AzureADAuthorizationEndpointUri $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.Endpoints.AzureADAuthorizationEndpointUri `
+                        -ApplicationId $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.ApplicationId `
+                        -TenantId $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.TenantId `
+                        -CertificateThumbprint $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.CertificateThumbprint
                     $accessToken = ConvertTo-SecureString $accessToken -AsPlainText -Force
                     Connect-MgGraph -AccessToken $accessToken
                     Add-MSCloudLoginAssistantEvent -Message 'Successfully connected to the Microsoft Graph API using Certificate Thumbprint' -Source $source
                 }
                 else
                 {
-                    Add-MSCloudLoginAssistantEvent -Message "Connecting by Environment Name" -Source $source
+                    Add-MSCloudLoginAssistantEvent -Message 'Connecting by Environment Name' -Source $source
                     try
                     {
                         Connect-MgGraph -ClientId $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.ApplicationId `
@@ -139,24 +138,24 @@ function Connect-MSCloudLoginMicrosoftGraph
                 $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.MultiFactorAuthentication = $false
                 $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.Connected = $true
             }
-            elseif($Script:MSCloudLoginConnectionProfile.MicrosoftGraph.AuthenticationType -eq 'ServicePrincipalWithSecret')
+            elseif ($Script:MSCloudLoginConnectionProfile.MicrosoftGraph.AuthenticationType -eq 'ServicePrincipalWithSecret')
             {
                 Add-MSCloudLoginAssistantEvent -Message 'Connecting to Microsoft Graph with ApplicationSecret' -Source $source
                 $secStringPassword = ConvertTo-SecureString -String $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.ApplicationSecret -AsPlainText -Force
                 $userName = $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.ApplicationId
                 [pscredential]$credObject = New-Object System.Management.Automation.PSCredential ($userName, $secStringPassword)
                 Connect-MgGraph -TenantId $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.TenantId `
-                                -ClientSecretCredential $credObject | Out-Null
+                    -ClientSecretCredential $credObject | Out-Null
                 $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.ConnectedDateTime = [System.DateTime]::Now.ToString()
                 $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.MultiFactorAuthentication = $false
                 $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.Connected = $true
             }
-            elseif($Script:MSCloudLoginConnectionProfile.MicrosoftGraph.AuthenticationType -eq 'AccessTokens')
+            elseif ($Script:MSCloudLoginConnectionProfile.MicrosoftGraph.AuthenticationType -eq 'AccessTokens')
             {
                 Add-MSCloudLoginAssistantEvent -Message 'Connecting to Microsoft Graph with AccessToken' -Source $source
                 $secStringAccessToken = ConvertTo-SecureString -String $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.AccessTokens[0] -AsPlainText -Force
                 Connect-MgGraph -Environment $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.GraphEnvironment `
-                                -AccessToken $secStringAccessToken | Out-Null
+                    -AccessToken $secStringAccessToken | Out-Null
                 $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.ConnectedDateTime = [System.DateTime]::Now.ToString()
                 $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.MultiFactorAuthentication = $false
                 $Script:MSCloudLoginConnectionProfile.MicrosoftGraph.Connected = $true
@@ -174,7 +173,7 @@ function Connect-MSCloudLoginMicrosoftGraph
 function Connect-MSCloudLoginMSGraphWithUser
 {
     [CmdletBinding()]
-    Param(
+    param(
         [Parameter()]
         [System.String]
         $TenantId
@@ -240,10 +239,7 @@ function Connect-MSCloudLoginMSGraphWithUser
         if ($_.Exception -like 'System.Net.WebException: The remote server returned an error: (400) Bad Request.*' -and `
             (Assert-IsNonInteractiveShell) -eq $true)
         {
-            $warningPref = $WarningPreference
-            $WarningPreference = 'Continue'
             Write-Warning -Message "Unable to retrieve AccessToken. Have you registered the 'Microsoft Graph PowerShell' application already? Please run 'Connect-MgGraph -Scopes Domain.Read.All' and logon using '$($Script:MSCloudLoginConnectionProfile.MicrosoftGraph.Credentials.Username)'"
-            $WarningPreference = $warningPref
             return
         }
 

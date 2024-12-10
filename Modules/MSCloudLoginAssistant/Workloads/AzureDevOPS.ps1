@@ -3,7 +3,6 @@ function Connect-MSCloudLoginAzureDevOPS
     [CmdletBinding()]
     param()
 
-    $WarningPreference = 'SilentlyContinue'
     $InformationPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginAzureDevOPS'
@@ -26,16 +25,16 @@ function Connect-MSCloudLoginAzureDevOPS
         }
     }
     elseif ($Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthenticationType -eq 'CredentialsWithApplicationId' -or
-                $Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthenticationType -eq 'Credentials' -or
-                $Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthenticationType -eq 'CredentialsWithTenantId')
+        $Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthenticationType -eq 'Credentials' -or
+        $Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthenticationType -eq 'CredentialsWithTenantId')
     {
-        Add-MSCloudLoginAssistantEvent -Message "Attempting to connecto to Azure DevOPS using Credentials." -Source $source
+        Add-MSCloudLoginAssistantEvent -Message 'Attempting to connecto to Azure DevOPS using Credentials.' -Source $source
         Connect-MSCloudAzureDevOPSWithUser
-        Add-MSCloudLoginAssistantEvent -Message "Successfully connected to Azure DevOPS using Credentials" -Source $source
+        Add-MSCloudLoginAssistantEvent -Message 'Successfully connected to Azure DevOPS using Credentials' -Source $source
     }
     else
     {
-        throw "Specified authentication method is not supported."
+        throw 'Specified authentication method is not supported.'
     }
 }
 function Connect-MSCloudAzureDevOPSWithUser
@@ -59,12 +58,12 @@ function Connect-MSCloudAzureDevOPSWithUser
     $clientId = '1950a258-227b-4e31-a9cf-717495945fc2'
     $uri = "$($Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthorizationUrl)/organizations/oauth2/token"
     $Body = @{
-        grant_type   = 'password'
+        grant_type = 'password'
         # Client id below is for Azure PowerShell
-        client_id    = '1950a258-227b-4e31-a9cf-717495945fc2'
-        username     = $username
-        password     = $password
-        resource     = "499b84ac-1321-427f-aa17-267ca6975798"
+        client_id  = '1950a258-227b-4e31-a9cf-717495945fc2'
+        username   = $username
+        password   = $password
+        resource   = '499b84ac-1321-427f-aa17-267ca6975798'
     }
     try
     {
@@ -80,9 +79,9 @@ function Connect-MSCloudAzureDevOPSWithUser
     }
     catch
     {
-        if ($_.ErrorDetails.Message -like "*AADSTS50076*")
+        if ($_.ErrorDetails.Message -like '*AADSTS50076*')
         {
-            Add-MSCloudLoginAssistantEvent -Message "Account used required MFA" -Source $source
+            Add-MSCloudLoginAssistantEvent -Message 'Account used required MFA' -Source $source
             Connect-MSCloudLoginAzureDevOPSWithUserMFA
         }
     }
@@ -108,8 +107,8 @@ function Connect-MSCloudAzureDevOPSWithUserMFA
         resource  = $Script:MSCloudLoginConnectionProfile.AzureDevOPS.AdminUrl
     }
     $DeviceCodeRequest = Invoke-RestMethod $deviceCodeUri `
-            -Method POST `
-            -Body $body
+        -Method POST `
+        -Body $body
 
     Write-Host "`r`n$($DeviceCodeRequest.message)" -ForegroundColor Yellow
 
@@ -117,7 +116,7 @@ function Connect-MSCloudAzureDevOPSWithUserMFA
         Method = 'POST'
         Uri    = "$($Script:MSCloudLoginConnectionProfile.AzureDevOPS.AuthorizationUrl)/$TenantId/oauth2/token"
         Body   = @{
-            grant_type = "urn:ietf:params:oauth:grant-type:device_code"
+            grant_type = 'urn:ietf:params:oauth:grant-type:device_code'
             code       = $DeviceCodeRequest.device_code
             client_id  = $clientId
         }
@@ -136,7 +135,7 @@ function Connect-MSCloudAzureDevOPSWithUserMFA
         catch
         {
             $Message = $_.ErrorDetails.Message | ConvertFrom-Json
-            if ($Message.error -ne "authorization_pending")
+            if ($Message.error -ne 'authorization_pending')
             {
                 throw
             }
@@ -152,8 +151,8 @@ function Connect-MSCloudAzureDevOPSWithUserMFA
 function Connect-MSCloudLoginAzureDevOPSWithCertificateThumbprint
 {
     [CmdletBinding()]
-    Param()
-    $WarningPreference = 'SilentlyContinue'
+    param()
+
     $ProgressPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginAzureDevOPSWithCertificateThumbprint'
 
@@ -276,4 +275,5 @@ function Connect-MSCloudLoginAzureDevOPSWithCertificateThumbprint
     catch
     {
         throw $_
-    }}
+    }
+}

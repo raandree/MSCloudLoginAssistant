@@ -3,10 +3,9 @@ function Connect-MSCloudLoginPowerPlatform
     [CmdletBinding()]
     param()
 
-    $WarningPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginPowerPlatform'
 
-    if($Script:MSCloudLoginConnectionProfile.PowerPlatform.Connected)
+    if ($Script:MSCloudLoginConnectionProfile.PowerPlatform.Connected)
     {
         return
     }
@@ -15,7 +14,7 @@ function Connect-MSCloudLoginPowerPlatform
     {
         if ($PSVersionTable.PSVersion.Major -ge 7)
         {
-            Add-MSCloudLoginAssistantEvent -Message "Using PowerShell 7 or above. Loading the Microsoft.PowerApps.Administration.PowerShell module using Windows PowerShell." -Source $source
+            Add-MSCloudLoginAssistantEvent -Message 'Using PowerShell 7 or above. Loading the Microsoft.PowerApps.Administration.PowerShell module using Windows PowerShell.' -Source $source
             Import-Module Microsoft.PowerApps.Administration.PowerShell -UseWindowsPowerShell -Global -DisableNameChecking | Out-Null
         }
         if ($Script:MSCloudLoginConnectionProfile.PowerPlatform.EnvironmentName -eq 'AzureGermany')
@@ -26,16 +25,20 @@ function Connect-MSCloudLoginPowerPlatform
 
         switch ($Script:CloudEnvironmentInfo.tenant_region_sub_scope)
         {
-            'DODCON'{
+            'DODCON'
+            {
                 $Script:MSCloudLoginConnectionProfile.PowerPlatform.Endpoint = 'usgovhigh'
             }
-            'DOD'{
+            'DOD'
+            {
                 $Script:MSCloudLoginConnectionProfile.PowerPlatform.Endpoint = 'dod'
             }
-            'GCC'{
+            'GCC'
+            {
                 $Script:MSCloudLoginConnectionProfile.PowerPlatform.Endpoint = 'usgov'
             }
-            default{
+            default
+            {
                 $Script:MSCloudLoginConnectionProfile.PowerPlatform.Endpoint = 'prod'
             }
         }
@@ -43,38 +46,38 @@ function Connect-MSCloudLoginPowerPlatform
         if ($Script:MSCloudLoginConnectionProfile.PowerPlatform.AuthenticationType -eq 'ServicePrincipalWithThumbprint')
         {
             Add-PowerAppsAccount -ApplicationId $Script:MSCloudLoginConnectionProfile.PowerPlatform.ApplicationId `
-                -TenantId $Script:MSCloudLoginConnectionProfile.PowerPlatform.TenantId `
+                -TenantID $Script:MSCloudLoginConnectionProfile.PowerPlatform.TenantId `
                 -CertificateThumbprint $Script:MSCloudLoginConnectionProfile.PowerPlatform.CertificateThumbprint `
                 -Endpoint $Script:MSCloudLoginConnectionProfile.PowerPlatform.Endpoint `
                 -ErrorAction Stop | Out-Null
-            $Script:MSCloudLoginConnectionProfile.PowerPlatform.ConnectedDateTime         = [System.DateTime]::Now.ToString()
+            $Script:MSCloudLoginConnectionProfile.PowerPlatform.ConnectedDateTime = [System.DateTime]::Now.ToString()
             $Script:MSCloudLoginConnectionProfile.PowerPlatform.MultiFactorAuthentication = $false
-            $Script:MSCloudLoginConnectionProfile.PowerPlatform.Connected                 = $true
+            $Script:MSCloudLoginConnectionProfile.PowerPlatform.Connected = $true
         }
         elseif ($Script:MSCloudLoginConnectionProfile.PowerPlatform.AuthenticationType -eq 'ServicePrincipalWithSecret')
         {
             Add-PowerAppsAccount -ApplicationId $Script:MSCloudLoginConnectionProfile.PowerPlatform.ApplicationId `
-                -TenantId $Script:MSCloudLoginConnectionProfile.PowerPlatform.TenantId `
+                -TenantID $Script:MSCloudLoginConnectionProfile.PowerPlatform.TenantId `
                 -ClientSecret $Script:MSCloudLoginConnectionProfile.PowerPlatform.ApplicationSecret `
                 -Endpoint $Script:MSCloudLoginConnectionProfile.PowerPlatform.Endpoint `
                 -ErrorAction Stop | Out-Null
-            $Script:MSCloudLoginConnectionProfile.PowerPlatform.ConnectedDateTime         = [System.DateTime]::Now.ToString()
+            $Script:MSCloudLoginConnectionProfile.PowerPlatform.ConnectedDateTime = [System.DateTime]::Now.ToString()
             $Script:MSCloudLoginConnectionProfile.PowerPlatform.MultiFactorAuthentication = $false
-            $Script:MSCloudLoginConnectionProfile.PowerPlatform.Connected                 = $true
+            $Script:MSCloudLoginConnectionProfile.PowerPlatform.Connected = $true
         }
         elseif ($Script:MSCloudLoginConnectionProfile.PowerPlatform.AuthenticationType -eq 'CredentialsWithTenantId')
         {
-            throw "You cannot specify TenantId with Credentials when connecting to PowerPlatforms."
+            throw 'You cannot specify TenantId with Credentials when connecting to PowerPlatforms.'
         }
         else
         {
-            Add-PowerAppsAccount -UserName $Script:MSCloudLoginConnectionProfile.PowerPlatform.Credentials.UserName `
+            Add-PowerAppsAccount -Username $Script:MSCloudLoginConnectionProfile.PowerPlatform.Credentials.UserName `
                 -Password $Script:MSCloudLoginConnectionProfile.PowerPlatform.Credentials.Password `
                 -Endpoint $Script:MSCloudLoginConnectionProfile.PowerPlatform.Endpoint `
                 -ErrorAction Stop | Out-Null
-            $Script:MSCloudLoginConnectionProfile.PowerPlatform.ConnectedDateTime         = [System.DateTime]::Now.ToString()
+            $Script:MSCloudLoginConnectionProfile.PowerPlatform.ConnectedDateTime = [System.DateTime]::Now.ToString()
             $Script:MSCloudLoginConnectionProfile.PowerPlatform.MultiFactorAuthentication = $false
-            $Script:MSCloudLoginConnectionProfile.PowerPlatform.Connected                 = $true
+            $Script:MSCloudLoginConnectionProfile.PowerPlatform.Connected = $true
         }
     }
     catch
@@ -86,24 +89,24 @@ function Connect-MSCloudLoginPowerPlatform
                 if ($Script:MSCloudLoginConnectionProfile.PowerPlatform.AuthenticationType -eq 'ServicePrincipalWithThumbprint')
                 {
                     Add-PowerAppsAccount -ApplicationId $Script:MSCloudLoginConnectionProfile.PowerPlatform.ApplicationId `
-                        -TenantId Global:MSCloudLoginConnectionProfile.PowerPlatform.$TenantId `
+                        -TenantID Global:MSCloudLoginConnectionProfile.PowerPlatform.$TenantId `
                         -CertificateThumbprint $Script:MSCloudLoginConnectionProfile.PowerPlatform.CertificateThumbprint `
-                        -EndPoint 'preview' `
+                        -Endpoint 'preview' `
                         -ErrorAction Stop | Out-Null
-                    $Script:MSCloudLoginConnectionProfile.PowerPlatform.ConnectedDateTime         = [System.DateTime]::Now.ToString()
+                    $Script:MSCloudLoginConnectionProfile.PowerPlatform.ConnectedDateTime = [System.DateTime]::Now.ToString()
                     $Script:MSCloudLoginConnectionProfile.PowerPlatform.MultiFactorAuthentication = $false
-                    $Script:MSCloudLoginConnectionProfile.PowerPlatform.Connected                 = $true
+                    $Script:MSCloudLoginConnectionProfile.PowerPlatform.Connected = $true
                 }
                 else
                 {
-                    Add-PowerAppsAccount -UserName $Script:MSCloudLoginConnectionProfile.PowerPlatform.Credentials.UserName `
+                    Add-PowerAppsAccount -Username $Script:MSCloudLoginConnectionProfile.PowerPlatform.Credentials.UserName `
                         -Password $Script:MSCloudLoginConnectionProfile.PowerPlatform.Credentials.Password `
-                        -EndPoint 'preview' `
+                        -Endpoint 'preview' `
                         -ErrorAction Stop | Out-Null
 
-                    $Script:MSCloudLoginConnectionProfile.PowerPlatform.ConnectedDateTime         = [System.DateTime]::Now.ToString()
+                    $Script:MSCloudLoginConnectionProfile.PowerPlatform.ConnectedDateTime = [System.DateTime]::Now.ToString()
                     $Script:MSCloudLoginConnectionProfile.PowerPlatform.MultiFactorAuthentication = $false
-                    $Script:MSCloudLoginConnectionProfile.PowerPlatform.Connected                 = $true
+                    $Script:MSCloudLoginConnectionProfile.PowerPlatform.Connected = $true
                 }
             }
             catch
@@ -136,9 +139,9 @@ function Connect-MSCloudLoginPowerPlatformMFA
     {
         #Test-PowerAppsAccount This is failing in PowerApps admin module for GCCH MFA
         Add-PowerAppsAccount -Endpoint $Script:MSCloudLoginConnectionProfile.PowerPlatform.Endpoint
-        $Script:MSCloudLoginConnectionProfile.PowerPlatform.ConnectedDateTime         = [System.DateTime]::Now.ToString()
+        $Script:MSCloudLoginConnectionProfile.PowerPlatform.ConnectedDateTime = [System.DateTime]::Now.ToString()
         $Script:MSCloudLoginConnectionProfile.PowerPlatform.MultiFactorAuthentication = $true
-        $Script:MSCloudLoginConnectionProfile.PowerPlatform.Connected                 = $true
+        $Script:MSCloudLoginConnectionProfile.PowerPlatform.Connected = $true
     }
     catch
     {

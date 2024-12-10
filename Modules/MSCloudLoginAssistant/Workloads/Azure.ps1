@@ -3,7 +3,6 @@ function Connect-MSCloudLoginAzure
     [CmdletBinding()]
     param()
 
-    $WarningPreference = 'SilentlyContinue'
     $InformationPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginAzure'
@@ -17,9 +16,9 @@ function Connect-MSCloudLoginAzure
             try
             {
                 Connect-AzAccount -ApplicationId $Script:MSCloudLoginConnectionProfile.Azure.ApplicationId `
-                                -TenantId $Script:MSCloudLoginConnectionProfile.Azure.TenantId `
-                                -CertificateThumbprint $Script:MSCloudLoginConnectionProfile.Azure.CertificateThumbprint `
-                                -Environment $Script:MSCloudLoginConnectionProfile.Azure.EnvironmentName | Out-Null
+                    -TenantId $Script:MSCloudLoginConnectionProfile.Azure.TenantId `
+                    -CertificateThumbprint $Script:MSCloudLoginConnectionProfile.Azure.CertificateThumbprint `
+                    -Environment $Script:MSCloudLoginConnectionProfile.Azure.EnvironmentName | Out-Null
             }
             catch
             {
@@ -36,8 +35,8 @@ function Connect-MSCloudLoginAzure
         }
     }
     elseif ($Script:MSCloudLoginConnectionProfile.Azure.AuthenticationType -eq 'CredentialsWithApplicationId' -or
-                $Script:MSCloudLoginConnectionProfile.Azure.AuthenticationType -eq 'Credentials' -or
-                $Script:MSCloudLoginConnectionProfile.Azure.AuthenticationType -eq 'CredentialsWithTenantId')
+        $Script:MSCloudLoginConnectionProfile.Azure.AuthenticationType -eq 'Credentials' -or
+        $Script:MSCloudLoginConnectionProfile.Azure.AuthenticationType -eq 'CredentialsWithTenantId')
     {
         try
         {
@@ -45,25 +44,25 @@ function Connect-MSCloudLoginAzure
             {
                 $Script:MSCloudLoginConnectionProfile.Azure.TenantId = $Script:MSCloudLoginConnectionProfile.Azure.Credentials.UserName.Split('@')[1]
             }
-            Add-MSCloudLoginAssistantEvent -Message "Attempting to connect to Azure using Credentials" -Source $source
+            Add-MSCloudLoginAssistantEvent -Message 'Attempting to connect to Azure using Credentials' -Source $source
             Connect-AzAccount -Credential $Script:MSCloudLoginConnectionProfile.Azure.Credentials `
-                              -Environment $Script:MSCloudLoginConnectionProfile.Azure.EnvironmentName `
-                              -ErrorAction Stop | Out-Null
+                -Environment $Script:MSCloudLoginConnectionProfile.Azure.EnvironmentName `
+                -ErrorAction Stop | Out-Null
             $Script:MSCloudLoginConnectionProfile.Azure.ConnectedDateTime = [System.DateTime]::Now.ToString()
             $Script:MSCloudLoginConnectionProfile.Azure.Connected = $true
             $Script:MSCloudLoginConnectionProfile.Azure.MultiFactorAuthentication = $false
-            Add-MSCloudLoginAssistantEvent -Message "Successfully connected to Azure using Credentials" -Source $source
+            Add-MSCloudLoginAssistantEvent -Message 'Successfully connected to Azure using Credentials' -Source $source
         }
         catch
         {
             try
             {
-                Add-MSCloudLoginAssistantEvent -Message "Attempting to connect to Azure using Credentials (MFA)" -Source $source
+                Add-MSCloudLoginAssistantEvent -Message 'Attempting to connect to Azure using Credentials (MFA)' -Source $source
                 Connect-AzAccount
                 $Script:MSCloudLoginConnectionProfile.Azure.ConnectedDateTime = [System.DateTime]::Now.ToString()
                 $Script:MSCloudLoginConnectionProfile.Azure.Connected = $true
                 $Script:MSCloudLoginConnectionProfile.Azure.MultiFactorAuthentication = $true
-                Add-MSCloudLoginAssistantEvent -Message "Successfully connected to Azure using Credentials (MFA)" -Source $source
+                Add-MSCloudLoginAssistantEvent -Message 'Successfully connected to Azure using Credentials (MFA)' -Source $source
             }
             catch
             {
@@ -73,14 +72,14 @@ function Connect-MSCloudLoginAzure
     }
     elseif ($Script:MSCloudLoginConnectionProfile.Azure.AuthenticationType -eq 'AccessTokens')
     {
-        Add-MSCloudLoginAssistantEvent -Message "Attempting to connect to Azure using Access Token" -Source $source
+        Add-MSCloudLoginAssistantEvent -Message 'Attempting to connect to Azure using Access Token' -Source $source
         Connect-AzAccount -Tenant $Script:MSCloudLoginConnectionProfile.Azure.TenantId `
-                          -Environment $Script:MSCloudLoginConnectionProfile.Azure.EnvironmentName `
-                          -AccessToken $Script:MSCloudLoginConnectionProfile.Azure.AccessTokens | Out-Null
+            -Environment $Script:MSCloudLoginConnectionProfile.Azure.EnvironmentName `
+            -AccessToken $Script:MSCloudLoginConnectionProfile.Azure.AccessTokens | Out-Null
         $Script:MSCloudLoginConnectionProfile.Azure.ConnectedDateTime = [System.DateTime]::Now.ToString()
         $Script:MSCloudLoginConnectionProfile.Azure.Connected = $true
         $Script:MSCloudLoginConnectionProfile.Azure.MultiFactorAuthentication = $false
-        Add-MSCloudLoginAssistantEvent -Message "Successfully connected to Azure using Access Token" -Source $source
+        Add-MSCloudLoginAssistantEvent -Message 'Successfully connected to Azure using Access Token' -Source $source
     }
     elseif ($Script:MSCloudLoginConnectionProfile.Azure.AuthenticationType -eq 'Identity')
     {
@@ -108,6 +107,6 @@ function Connect-MSCloudLoginAzure
     }
     else
     {
-        throw "Specified authentication method is not supported."
+        throw 'Specified authentication method is not supported.'
     }
 }

@@ -4,7 +4,6 @@ function Connect-MSCloudLoginDefenderForEndpoint
     param()
 
     $ProgressPreference = 'SilentlyContinue'
-    $WarningPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginDefenderForEndpoint'
 
     if ($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthenticationType -eq 'CredentialsWithApplicationId' -or
@@ -74,9 +73,9 @@ function Connect-MSCloudLoginDefenderForEndpointWithUser
     }
     catch
     {
-        if ($_.ErrorDetails.Message -like "*AADSTS50076*")
+        if ($_.ErrorDetails.Message -like '*AADSTS50076*')
         {
-            Add-MSCloudLoginAssistantEvent -Message "Account used required MFA" -Source $source
+            Add-MSCloudLoginAssistantEvent -Message 'Account used required MFA' -Source $source
             Connect-MSCloudLoginDefenderForEndpointWithUserMFA
         }
     }
@@ -107,8 +106,8 @@ function Connect-MSCloudLoginDefenderForEndpointWithUserMFA
         resource  = $Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.Scope
     }
     $DeviceCodeRequest = Invoke-RestMethod $deviceCodeUri `
-            -Method POST `
-            -Body $body
+        -Method POST `
+        -Body $body
 
     Write-Host "`r`n$($DeviceCodeRequest.message)" -ForegroundColor Yellow
 
@@ -116,7 +115,7 @@ function Connect-MSCloudLoginDefenderForEndpointWithUserMFA
         Method = 'POST'
         Uri    = "$($Script:MSCloudLoginConnectionProfile.DefenderForEndpoint.AuthorizationUrl)/$TenantId/oauth2/token"
         Body   = @{
-            grant_type = "urn:ietf:params:oauth:grant-type:device_code"
+            grant_type = 'urn:ietf:params:oauth:grant-type:device_code'
             code       = $DeviceCodeRequest.device_code
             client_id  = $clientId
         }
@@ -135,7 +134,7 @@ function Connect-MSCloudLoginDefenderForEndpointWithUserMFA
         catch
         {
             $Message = $_.ErrorDetails.Message | ConvertFrom-Json
-            if ($Message.error -ne "authorization_pending")
+            if ($Message.error -ne 'authorization_pending')
             {
                 throw
             }
@@ -169,7 +168,6 @@ function Connect-MSCloudLoginDefenderForEndpointWithCertificateThumbprint
     [CmdletBinding()]
     param()
 
-    $WarningPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginDefenderForEndpointWithCertificateThumbprint'
 

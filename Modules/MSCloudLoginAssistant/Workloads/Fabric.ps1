@@ -3,7 +3,6 @@ function Connect-MSCloudLoginFabric
     [CmdletBinding()]
     param()
 
-    $WarningPreference = 'SilentlyContinue'
     $InformationPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginFabric'
@@ -27,15 +26,15 @@ function Connect-MSCloudLoginFabric
     }
     else
     {
-        throw "Specified authentication method is not supported."
+        throw 'Specified authentication method is not supported.'
     }
 }
 
 function Connect-MSCloudLoginFabricWithCertificateThumbprint
 {
     [CmdletBinding()]
-    Param()
-    $WarningPreference = 'SilentlyContinue'
+    param()
+
     $ProgressPreference = 'SilentlyContinue'
     $source = 'Connect-MSCloudLoginFabricWithCertificateThumbprint'
 
@@ -157,4 +156,5 @@ function Connect-MSCloudLoginFabricWithCertificateThumbprint
     catch
     {
         throw $_
-    }}
+    }
+}
