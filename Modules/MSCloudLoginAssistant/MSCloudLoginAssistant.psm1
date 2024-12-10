@@ -2,7 +2,7 @@ $Script:WriteToEventLog = $env:MSCLOUDLOGINASSISTANT_WRITETOEVENTLOG -eq 'true'
 
 Write-Verbose $PSScriptRoot -Verbose
 . "$PSScriptRoot\ConnectionProfile.ps1"
-$privateModules = Get-ChildItem -Path "$PSScriptRoot\Workloads" -Filter "*.ps1" -Recurse
+$privateModules = Get-ChildItem -Path "$PSScriptRoot\Workloads" -Filter '*.ps1' -Recurse
 foreach ($module in $privateModules)
 {
     Write-Verbose "Importing workload $($module.FullName)"
@@ -10,7 +10,7 @@ foreach ($module in $privateModules)
 }
 
 $requiredModules = @(
-    'Microsoft.Graph.Identity.DirectoryManagement'
+    'Microsoft.Graph.Beta.Identity.DirectoryManagement'
 )
 foreach ($module in $requiredModules)
 {
@@ -26,7 +26,7 @@ function Connect-M365Tenant
     param
     (
         [Parameter(Mandatory = $true)]
-        [ValidateSet('AdminAPI', 'Azure','AzureDevOPS', 'ExchangeOnline', 'Fabric', `
+        [ValidateSet('AdminAPI', 'Azure', 'AzureDevOPS', 'ExchangeOnline', 'Fabric', `
                 'SecurityComplianceCenter', 'PnP', 'PowerPlatforms', `
                 'MicrosoftTeams', 'MicrosoftGraph', 'SharePointOnlineREST', 'Tasks', 'DefenderForEndpoint')]
         [System.String]
@@ -368,7 +368,7 @@ function Get-MSCloudLoginConnectionProfile
     param
     (
         [Parameter(Mandatory = $true)]
-        [ValidateSet('AdminAPI', 'Azure','AzureDevOPS', 'ExchangeOnline', 'Fabric', `
+        [ValidateSet('AdminAPI', 'Azure', 'AzureDevOPS', 'ExchangeOnline', 'Fabric', `
                 'SecurityComplianceCenter', 'PnP', 'PowerPlatforms', `
                 'MicrosoftTeams', 'MicrosoftGraph', 'SharePointOnlineREST', 'Tasks', 'DefenderForEndpoint')]
         [System.String]
@@ -393,6 +393,15 @@ function Reset-MSCloudLoginConnectionProfileContext
 {
     $source = 'Reset-MSCloudLoginConnectionProfileContext'
     Add-MSCloudLoginAssistantEvent -Message 'Resetting connection profile' -Source $source
+    $workloads = $Script:MSCloudLoginConnectionProfile.PSObject.Properties.Name | Where-Object { $_ -notin @('CreatedTime', 'OrganizationName') }
+    foreach ($workload in $workloads)
+    {
+        $disconnectExists = $null -ne ($Script:MSCloudLoginConnectionProfile.$workload | Get-Member -Name 'Disconnect' -MemberType Method)
+        if ($disconnectExists)
+        {
+            $Script:MSCloudLoginConnectionProfile.$workload.Disconnect()
+        }
+    }
     $Script:MSCloudLoginConnectionProfile = New-Object MSCloudLoginConnectionProfile
 }
 
@@ -434,7 +443,17 @@ function Add-MSCloudLoginAssistantEvent
 
     try
     {
-        if ([System.Diagnostics.EventLog]::SourceExists($Source))
+        try
+        {
+            $sourceExists = [System.Diagnostics.EventLog]::SourceExists($Source)
+        }
+        catch [System.Security.SecurityException]
+        {
+            Write-Warning -Message "MSCloudLoginAssistant - Access to an event log is denied. The message {$Message} from {$Source} will not be written to the event log."
+            return
+        }
+
+        if ($sourceExists)
         {
             $sourceLogName = [System.Diagnostics.EventLog]::LogNameFromSourceName($Source, '.')
             if ($logName -ne $sourceLogName)
@@ -559,7 +578,7 @@ function Compare-InputParametersForChange
             $globalParameters.Remove('TenantId') | Out-Null
         }
     }
-    if ($workloadInternalName -eq 'PNP' -and $currentParameters.ContainsKey("Url") -and `
+    if ($workloadInternalName -eq 'PNP' -and $currentParameters.ContainsKey('Url') -and `
         -not [System.String]::IsNullOrEmpty($currentParameters.Url))
     {
         $globalParameters.Add('Url', $workloadProfile.ConnectionUrl)
@@ -736,7 +755,7 @@ function Get-TenantLoginEndPoint
 {
     [CmdletBinding()]
     [OutputType([System.String])]
-    Param(
+    param(
         [Parameter(Mandatory = $True)]
         [System.String]
         $TenantName,
@@ -745,6 +764,7 @@ function Get-TenantLoginEndPoint
         [ValidateSet('MicrosoftOnline', 'EvoSTS')]
         $LoginSource = 'EvoSTS'
     )
+
     $TenantInfo = @{ }
     if ($LoginSource -eq 'EvoSTS')
     {
@@ -765,7 +785,7 @@ function New-ADALServiceInfo
 {
     [CmdletBinding()]
     [OutputType([System.Collections.HashTable])]
-    Param(
+    param(
         [Parameter(Mandatory = $True)]
         [System.String]
         $TenantName,
@@ -817,7 +837,7 @@ function New-ADALServiceInfo
 function Get-AuthHeader
 {
     [CmdletBinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $True)]
         [System.String]
         $UserPrincipalName,
@@ -830,6 +850,7 @@ function Get-AuthHeader
         [System.String]
         $RedirectURI
     )
+
     if ($null -eq $Script:ADALServicePoint)
     {
         $TenantName = $UserPrincipalName.split('@')[1]
@@ -858,7 +879,7 @@ function Get-MSCloudLoginAccessToken
 {
     [CmdletBinding()]
     [OutputType([System.String])]
-    Param(
+    param(
         [Parameter(Mandatory = $True)]
         [System.String]
         $ConnectionUri,
@@ -884,7 +905,7 @@ function Get-MSCloudLoginAccessToken
 
     try
     {
-        Add-MSCloudLoginAssistantEvent -Message "Connecting by endpoints URI" -Source $source
+        Add-MSCloudLoginAssistantEvent -Message 'Connecting by endpoints URI' -Source $source
         $Certificate = Get-Item "Cert:\CurrentUser\My\$($CertificateThumbprint)" -ErrorAction SilentlyContinue
         if ($null -eq $Certificate)
         {
@@ -1012,7 +1033,7 @@ function Get-PowerPlatformTokenInfo
 
     $jobName = 'AcquireTokenAsync' + (New-Guid).ToString()
     Start-Job -Name $jobName -ScriptBlock {
-        Param(
+        param(
             [Parameter(Mandatory = $true)]
             [System.Management.Automation.PSCredential]
             $O365Credentials,
@@ -1021,9 +1042,9 @@ function Get-PowerPlatformTokenInfo
             [System.String]
             $Audience
         )
+
         try
         {
-            $WarningPreference = 'SilentlyContinue'
             Import-Module -Name 'Microsoft.PowerApps.Administration.PowerShell' -Force
             $authContext = New-Object Microsoft.IdentityModel.Clients.ActiveDirectory.AuthenticationContext('https://login.windows.net/common')
             $credential = [Microsoft.IdentityModel.Clients.ActiveDirectory.UserCredential]::new($O365Credentials.Username, $O365Credentials.Password)
@@ -1071,7 +1092,7 @@ function Test-MSCloudLoginCommand
 {
     [CmdletBinding()]
     [OutputType([System.Boolean])]
-    Param(
+    param(
         [Parameter(Mandatory = $true)]
         [System.String]
         $Command
@@ -1119,7 +1140,7 @@ function Get-CloudEnvironmentInfo
     )
 
     $source = 'Get-CloudEnvironmentInfo'
-    Add-MSCloudLoginAssistantEvent -Message "Retrieving Environment Details" -Source $source
+    Add-MSCloudLoginAssistantEvent -Message 'Retrieving Environment Details' -Source $source
 
     try
     {
