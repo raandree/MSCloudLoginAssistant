@@ -3,22 +3,21 @@ function Connect-MSCloudLoginFabric
     [CmdletBinding()]
     param()
 
-    $WarningPreference = 'SilentlyContinue'
     $InformationPreference = 'SilentlyContinue'
     $ProgressPreference = 'SilentlyContinue'
-    $VerbosePreference = 'SilentlyContinue'
+    $source = 'Connect-MSCloudLoginFabric'
 
-    if ($Global:MSCloudLoginConnectionProfile.Fabric.AuthenticationType -eq 'ServicePrincipalWithThumbprint')
+    if ($Script:MSCloudLoginConnectionProfile.Fabric.AuthenticationType -eq 'ServicePrincipalWithThumbprint')
     {
-        Write-Verbose -Message "Attempting to connect to Fabric using AAD App {$ApplicationID}"
+        Add-MSCloudLoginAssistantEvent -Message "Attempting to connect to Fabric using AAD App {$ApplicationID}" -Source $source
         try
         {
             Connect-MSCloudLoginFabricWithCertificateThumbprint
 
-            $Global:MSCloudLoginConnectionProfile.Fabric.ConnectedDateTime = [System.DateTime]::Now.ToString()
-            $Global:MSCloudLoginConnectionProfile.Fabric.Connected = $true
-            $Global:MSCloudLoginConnectionProfile.Fabric.MultiFactorAuthentication = $false
-            Write-Verbose -Message "Successfully connected to Fabric using AAD App {$ApplicationID}"
+            $Script:MSCloudLoginConnectionProfile.Fabric.ConnectedDateTime = [System.DateTime]::Now.ToString()
+            $Script:MSCloudLoginConnectionProfile.Fabric.Connected = $true
+            $Script:MSCloudLoginConnectionProfile.Fabric.MultiFactorAuthentication = $false
+            Add-MSCloudLoginAssistantEvent -Message "Successfully connected to Fabric using AAD App {$ApplicationID}" -Source $source
         }
         catch
         {
@@ -27,30 +26,30 @@ function Connect-MSCloudLoginFabric
     }
     else
     {
-        throw "Specified authentication method is not supported."
+        throw 'Specified authentication method is not supported.'
     }
 }
 
 function Connect-MSCloudLoginFabricWithCertificateThumbprint
 {
     [CmdletBinding()]
-    Param()
-    $WarningPreference = 'SilentlyContinue'
-    $ProgressPreference = 'SilentlyContinue'
-    $VerbosePreference = 'SilentlyContinue'
+    param()
 
-    Write-Verbose -Message 'Attempting to connect to Fabric using CertificateThumbprint'
-    $tenantId = $Global:MSCloudLoginConnectionProfile.Fabric.TenantId
+    $ProgressPreference = 'SilentlyContinue'
+    $source = 'Connect-MSCloudLoginFabricWithCertificateThumbprint'
+
+    Add-MSCloudLoginAssistantEvent -Message 'Attempting to connect to Fabric using CertificateThumbprint' -Source $source
+    $tenantId = $Script:MSCloudLoginConnectionProfile.Fabric.TenantId
 
     try
     {
-        $Certificate = Get-Item "Cert:\CurrentUser\My\$($Global:MSCloudLoginConnectionProfile.Fabric.CertificateThumbprint)" -ErrorAction SilentlyContinue
+        $Certificate = Get-Item "Cert:\CurrentUser\My\$($Script:MSCloudLoginConnectionProfile.Fabric.CertificateThumbprint)" -ErrorAction SilentlyContinue
 
         if ($null -eq $Certificate)
         {
-            Write-Verbose 'Certificate not found in CurrentUser\My, trying LocalMachine\My'
+            Add-MSCloudLoginAssistantEvent 'Certificate not found in CurrentUser\My, trying LocalMachine\My' -Source $source
 
-            $Certificate = Get-ChildItem "Cert:\LocalMachine\My\$($Global:MSCloudLoginConnectionProfile.Fabric.CertificateThumbprint)" -ErrorAction SilentlyContinue
+            $Certificate = Get-ChildItem "Cert:\LocalMachine\My\$($Script:MSCloudLoginConnectionProfile.Fabric.CertificateThumbprint)" -ErrorAction SilentlyContinue
 
             if ($null -eq $Certificate)
             {
@@ -80,13 +79,13 @@ function Connect-MSCloudLoginFabricWithCertificateThumbprint
         # Create JWT payload
         $JWTPayLoad = @{
             # What endpoint is allowed to use this JWT
-            aud = "$($Global:MSCloudLoginConnectionProfile.Fabric.AuthorizationUrl)/$TenantId/oauth2/v2.0/token"
+            aud = "$($Script:MSCloudLoginConnectionProfile.Fabric.AuthorizationUrl)/$TenantId/oauth2/v2.0/token"
 
             # Expiration timestamp
             exp = $JWTExpiration
 
             # Issuer = your application
-            iss = $Global:MSCloudLoginConnectionProfile.Fabric.ApplicationID
+            iss = $Script:MSCloudLoginConnectionProfile.Fabric.ApplicationID
 
             # JWT ID: random guid
             jti = [guid]::NewGuid()
@@ -95,7 +94,7 @@ function Connect-MSCloudLoginFabricWithCertificateThumbprint
             nbf = $NotBefore
 
             # JWT Subject
-            sub = $Global:MSCloudLoginConnectionProfile.Fabric.ApplicationID
+            sub = $Script:MSCloudLoginConnectionProfile.Fabric.ApplicationID
         }
 
         # Convert header and payload to base64
@@ -125,14 +124,14 @@ function Connect-MSCloudLoginFabricWithCertificateThumbprint
 
         # Create a hash with body parameters
         $Body = @{
-            client_id             = $Global:MSCloudLoginConnectionProfile.Fabric.ApplicationID
+            client_id             = $Script:MSCloudLoginConnectionProfile.Fabric.ApplicationID
             client_assertion      = $JWT
             client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
-            scope                 = $Global:MSCloudLoginConnectionProfile.Fabric.Scope
+            scope                 = $Script:MSCloudLoginConnectionProfile.Fabric.Scope
             grant_type            = 'client_credentials'
         }
 
-        $Url = "$($Global:MSCloudLoginConnectionProfile.Fabric.AuthorizationUrl)/$TenantId/oauth2/v2.0/token"
+        $Url = "$($Script:MSCloudLoginConnectionProfile.Fabric.AuthorizationUrl)/$TenantId/oauth2/v2.0/token"
 
         # Use the self-generated JWT as Authorization
         $Header = @{
@@ -151,10 +150,11 @@ function Connect-MSCloudLoginFabricWithCertificateThumbprint
         $Request = Invoke-RestMethod @PostSplat
 
         # View access_token
-        $Global:MSCloudLoginConnectionProfile.Fabric.AccessToken = 'Bearer ' + $Request.access_token
-        Write-Verbose -Message 'Successfully connected to the Fabric API using Certificate Thumbprint'
+        $Script:MSCloudLoginConnectionProfile.Fabric.AccessToken = 'Bearer ' + $Request.access_token
+        Add-MSCloudLoginAssistantEvent -Message 'Successfully connected to the Fabric API using Certificate Thumbprint' -Source $source
     }
     catch
     {
         throw $_
-    }}
+    }
+}
